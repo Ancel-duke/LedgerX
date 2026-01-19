@@ -32,7 +32,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = configService.get<number>('app.port') || 3000;
+  // Render provides PORT environment variable, fallback to config or 3000
+  const port = process.env.PORT || configService.get<number>('app.port') || 3000;
   await app.listen(port);
 
   console.log(`Application is running on: http://localhost:${port}/${apiPrefix}`);

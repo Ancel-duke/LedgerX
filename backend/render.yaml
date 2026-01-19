@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: ledgerx-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ledgerx-db
+          property: connectionString
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 1d
+      - key: JWT_REFRESH_EXPIRATION
+        value: 7d
+      - key: PORT
+        value: 10000
+
+databases:
+  - name: ledgerx-db
+    plan: free
+    databaseName: ledgerx
+    user: ledgerx
