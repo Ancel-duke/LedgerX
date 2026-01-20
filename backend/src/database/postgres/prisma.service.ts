@@ -34,7 +34,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             this.logger.warn('Migration conflict detected. Attempting to resolve...');
             try {
               // Mark failed migrations as applied (for cases where schema already exists)
-              execSync('npx prisma migrate resolve --applied 20260120170733_init || true', { 
+              // Try to resolve any failed migration
+              const migrations = ['20260120170733_init', '20260120000000_init'];
+              for (const migrationName of migrations) {
+                try {
+                  execSync(`npx prisma migrate resolve --applied ${migrationName}`, {
+                    stdio: 'pipe',
+                    env: { ...process.env, NODE_ENV: 'production' }
+                  });
+                  this.logger.log(`Resolved migration: ${migrationName}`);
+                  break;
+                } catch (e) {
+                  // Try next migration name
+                  continue;
+                }
+              }
+              // Fallback: try generic resolve
+              try {
+                execSync('npx prisma migrate resolve --applied', { 
                 stdio: 'inherit',
                 env: { ...process.env, NODE_ENV: 'production' }
               });
