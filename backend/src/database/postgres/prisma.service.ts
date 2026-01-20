@@ -37,17 +37,36 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           if (fullError.includes('P3009') || 
               fullError.includes('P3018') || 
               fullError.includes('failed migrations') ||
-              fullError.includes('failed to apply')) {
+              fullError.includes('failed to apply') ||
+              fullError.includes('already exists')) {
             this.logger.warn('Migration conflict detected. Attempting to resolve...');
             try {
-              // Try to resolve the known failed migration
-              const failedMigrationName = '20260120170733_init';
-              try {
-                execSync(`npx prisma migrate resolve --applied ${failedMigrationName}`, {
-                  stdio: 'pipe',
-                  env: { ...process.env, NODE_ENV: 'production' }
-                });
-                this.logger.log(`Successfully resolved migration: ${failedMigrationName}`);
+              // Extract migration name from error if possible
+              const migrationMatch = fullError.match(/Migration name: (\d+_\w+)/);
+              const failedMigrationName = migrationMatch ? migrationMatch[1] : null;
+              
+              // Try to resolve known failed migrations
+              const migrationsToResolve = failedMigrationName 
+                ? [failedMigrationName]
+                : ['20260120000000_init', '20260120170733_init'];
+              
+              let resolved = false;
+              for (const migrationName of migrationsToResolve) {
+                try {
+                  execSync(`npx prisma migrate resolve --applied ${migrationName}`, {
+                    stdio: 'pipe',
+                    env: { ...process.env, NODE_ENV: 'production' }
+                  });
+                  this.logger.log(`Successfully resolved migration: ${migrationName}`);
+                  resolved = true;
+                  break;
+                } catch (resolveError) {
+                  // Try next migration name
+                  continue;
+                }
+              }
+              
+              if (resolved) {
                 // Try to run migrations again after resolving
                 try {
                   execSync('npx prisma migrate deploy', { 
@@ -58,8 +77,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                 } catch (retryError) {
                   this.logger.warn('Migration retry completed (may already be up to date)');
                 }
-              } catch (resolveError) {
-                this.logger.warn(`Could not resolve ${failedMigrationName}, but continuing...`);
+              } else {
+                this.logger.warn('Could not auto-resolve migration, but continuing (database may already be up to date)');
               }
             } catch (resolveError) {
               this.logger.warn('Could not auto-resolve migration. Database may already be up to date.');

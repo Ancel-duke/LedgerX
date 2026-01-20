@@ -27,8 +27,13 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(new TransformInterceptor(), new ErrorsInterceptor());
 
+  // Support multiple CORS origins (comma-separated string or array)
+  const allowedOrigins = corsOrigin.includes(',')
+    ? corsOrigin.split(',').map(origin => origin.trim())
+    : [corsOrigin];
+
   app.enableCors({
-    origin: corsOrigin,
+    origin: allowedOrigins,
     credentials: true,
   });
 
