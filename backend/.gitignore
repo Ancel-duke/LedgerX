@@ -40,4 +40,5 @@ lerna-debug.log*
 .env.*.local
 
 # Prisma
-/prisma/migrations
+# Note: migrations should be committed to version control
+# /prisma/migrations
