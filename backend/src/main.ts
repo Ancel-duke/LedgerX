@@ -28,12 +28,23 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TransformInterceptor(), new ErrorsInterceptor());
 
   // Support multiple CORS origins (comma-separated string or array)
+  // Default origins include localhost and Netlify production URL
+  const defaultOrigins = [
+    'http://localhost:3001',
+    'http://localhost:3000',
+    'https://ledgerxx.netlify.app',
+  ];
+
   const allowedOrigins = corsOrigin.includes(',')
-    ? corsOrigin.split(',').map(origin => origin.trim())
-    : [corsOrigin];
+    ? [...defaultOrigins, ...corsOrigin.split(',').map(origin => origin.trim())]
+    : [...defaultOrigins, corsOrigin];
+
+  // Remove duplicates
+  const uniqueOrigins = [...new Set(allowedOrigins)];
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: uniqueOrigins,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 
