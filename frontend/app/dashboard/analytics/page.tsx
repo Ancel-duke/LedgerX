@@ -29,19 +29,27 @@ export default function AnalyticsPage() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  interface PaymentStatusData {
+    status: string;
+    count: number;
+  }
+
   const { data: paymentsData } = useQuery({
     queryKey: ['payments', 'analytics'],
     queryFn: () => paymentsService.getAll({ limit: 1000 }),
   });
 
-  const paymentStatusData = paymentsData?.data
+  const paymentStatusData: { data: PaymentStatusData[] } = paymentsData?.data
     ? {
         data: Object.entries(
           paymentsData.data.reduce((acc: Record<string, number>, payment: any) => {
             acc[payment.status] = (acc[payment.status] || 0) + 1;
             return acc;
           }, {}),
-        ).map(([status, count]) => ({ status, count })),
+        ).map(([status, count]): PaymentStatusData => ({ 
+          status, 
+          count: count as number 
+        })),
       }
     : { data: [] };
 
