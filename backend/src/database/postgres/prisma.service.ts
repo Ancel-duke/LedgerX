@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -21,7 +22,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // Auto-run migrations on startup for Render free tier (no shell access)
       if (process.env.NODE_ENV === 'production' && process.env.AUTO_MIGRATE !== 'false') {
         try {
-          const { execSync } = require('child_process');
           this.logger.log('Running database migrations...');
           execSync('npx prisma migrate deploy', { 
             stdio: 'inherit',
