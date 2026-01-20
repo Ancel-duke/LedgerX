@@ -46,14 +46,22 @@ export default function DashboardPage() {
   });
 
   // Aggregate payment status data for the chart
-  const paymentStatusData = paymentsData?.data
+  interface PaymentStatusData {
+    status: string;
+    count: number;
+  }
+
+  const paymentStatusData: { data: PaymentStatusData[] } = paymentsData?.data
     ? {
         data: Object.entries(
           paymentsData.data.reduce((acc: Record<string, number>, payment: any) => {
             acc[payment.status] = (acc[payment.status] || 0) + 1;
             return acc;
           }, {}),
-        ).map(([status, count]) => ({ status, count })),
+        ).map(([status, count]): PaymentStatusData => ({ 
+          status, 
+          count: count as number 
+        })),
       }
     : { data: [] };
 
