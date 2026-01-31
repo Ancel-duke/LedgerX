@@ -1,442 +1,104 @@
 # LedgerX
 
-A modern, full-stack finance management application for managing invoices, payments, clients, and organizations with real-time analytics and activity tracking.
-
-## 🚀 Features
-
-### Core Functionality
-- **Invoice Management**: Create, view, update, and track invoices with multiple line items
-- **Payment Processing**: Record and track payments linked to invoices or standalone
-- **Client Management**: Manage client information and relationships
-- **Organization Support**: Multi-tenant architecture supporting multiple organizations
-- **Real-time Analytics**: Dashboard with revenue trends, invoice status, and payment completion rates
-- **Activity Logging**: Comprehensive audit trail of all system actions
-- **User Authentication**: Secure JWT-based authentication with role-based access control
-
-### Key Highlights
-- ✅ Real-time data updates (15-30 second refresh intervals)
-- ✅ Automatic invoice status updates based on payments
-- ✅ Balance tracking for partial payments
-- ✅ Responsive design for desktop and mobile
-- ✅ Multi-database architecture (PostgreSQL for transactional data, MongoDB for logs)
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Framework**: NestJS (Node.js)
-- **Language**: TypeScript
-- **Database**: 
-  - PostgreSQL (via Prisma ORM) - for invoices, payments, clients, organizations
-  - MongoDB (via Mongoose) - for activity logs
-- **Authentication**: JWT (JSON Web Tokens) with Passport.js
-- **Validation**: class-validator, class-transformer
-- **API**: RESTful API with Express
-
-### Frontend
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **UI Library**: React 18
-- **State Management**: TanStack Query (React Query) for server state
-- **Styling**: Tailwind CSS
-- **Charts**: Recharts
-- **HTTP Client**: Axios
-
-## 📋 Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-- **Node.js** (v18 or higher)
-- **npm** or **yarn**
-- **PostgreSQL** (v12 or higher)
-- **MongoDB** (v5 or higher) or MongoDB Atlas account
-- **Git**
-
-## 🔧 Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone <repository-url>
-cd LedgerX
-```
-
-### 2. Backend Setup
-
-```bash
-cd backend
-npm install
-```
-
-### 3. Frontend Setup
-
-```bash
-cd ../frontend
-npm install
-```
-
-## ⚙️ Configuration
-
-### Backend Environment Variables
-
-Create a `.env` file in the `backend` directory:
-
-```env
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/ledgerx?schema=public"
-MONGODB_URI="mongodb://localhost:27017/ledgerx"
-# Or for MongoDB Atlas:
-# MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/ledgerx"
-
-# JWT Configuration
-JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
-JWT_EXPIRATION="1d"
-JWT_REFRESH_SECRET="your-super-secret-refresh-key-change-this-in-production"
-JWT_REFRESH_EXPIRATION="7d"
-
-# Application
-PORT=3000
-NODE_ENV=development
-```
-
-### Frontend Environment Variables
-
-Create a `.env.local` file in the `frontend` directory:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
-```
-
-## 🗄️ Database Setup
-
-### PostgreSQL Setup
-
-1. Create a PostgreSQL database:
-
-```sql
-CREATE DATABASE ledgerx;
-```
-
-2. Run Prisma migrations:
-
-```bash
-cd backend
-npx prisma migrate dev
-```
-
-3. Generate Prisma Client:
-
-```bash
-npx prisma generate
-```
-
-### MongoDB Setup
-
-1. **Local MongoDB**: Ensure MongoDB is running on your machine
-2. **MongoDB Atlas**: Update `MONGODB_URI` in `.env` with your Atlas connection string
-
-### Seed Data (Optional)
-
-Seed mock clients for testing:
-
-```bash
-cd backend
-npm run seed:clients
-```
-
-## 🚀 Running the Application
-
-### Development Mode
-
-#### Start Backend
-
-```bash
-cd backend
-npm run start:dev
-```
-
-The backend API will be available at `http://localhost:3000/api`
-
-#### Start Frontend
-
-```bash
-cd frontend
-npm run dev
-```
-
-The frontend will be available at `http://localhost:3001` (or next available port)
-
-### Production Mode
-
-#### Build Backend
-
-```bash
-cd backend
-npm run build
-npm run start:prod
-```
-
-#### Build Frontend
-
-```bash
-cd frontend
-npm run build
-npm start
-```
-
-## 📁 Project Structure
-
-```
-LedgerX/
-├── backend/                 # NestJS backend application
-│   ├── prisma/              # Prisma schema and migrations
-│   │   └── schema.prisma    # Database schema definition
-│   ├── src/
-│   │   ├── activity-log/   # Activity logging module (MongoDB)
-│   │   ├── analytics/       # Analytics and reporting
-│   │   ├── auth/           # Authentication & authorization
-│   │   ├── clients/        # Client management
-│   │   ├── invoices/       # Invoice management
-│   │   ├── payments/       # Payment processing
-│   │   ├── organizations/  # Organization/tenant management
-│   │   ├── users/          # User management
-│   │   ├── common/         # Shared utilities, guards, decorators
-│   │   ├── config/         # Configuration modules
-│   │   ├── database/       # Database connections (PostgreSQL & MongoDB)
-│   │   └── scripts/        # Utility scripts (seeders, etc.)
-│   └── package.json
-│
-├── frontend/                # Next.js frontend application
-│   ├── app/                # Next.js App Router pages
-│   │   ├── auth/          # Authentication pages
-│   │   ├── dashboard/     # Dashboard and main app pages
-│   │   └── layout.tsx     # Root layout
-│   ├── components/         # React components
-│   │   ├── charts/        # Chart components
-│   │   ├── dashboard/     # Dashboard-specific components
-│   │   └── ui/            # Reusable UI components
-│   ├── services/          # API service layer
-│   │   └── api/          # API client services
-│   └── package.json
-│
-└── README.md
-```
-
-## 🔌 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register a new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/refresh` - Refresh access token
-
-### Organizations
-- `GET /api/organizations` - List organizations
-- `POST /api/organizations` - Create organization
-- `GET /api/organizations/:id` - Get organization details
-- `PATCH /api/organizations/:id` - Update organization
-- `DELETE /api/organizations/:id` - Delete organization
-
-### Clients
-- `GET /api/clients` - List clients
-- `POST /api/clients` - Create client
-- `GET /api/clients/:id` - Get client details
-- `PATCH /api/clients/:id` - Update client
-- `DELETE /api/clients/:id` - Delete client
-
-### Invoices
-- `GET /api/invoices` - List invoices (with pagination)
-- `POST /api/invoices` - Create invoice
-- `GET /api/invoices/:id` - Get invoice details
-- `PATCH /api/invoices/:id` - Update invoice
-- `DELETE /api/invoices/:id` - Delete invoice
-
-### Payments
-- `GET /api/payments` - List payments (with pagination)
-- `POST /api/payments` - Create payment
-- `GET /api/payments/:id` - Get payment details
-- `PATCH /api/payments/:id` - Update payment
-- `DELETE /api/payments/:id` - Delete payment
-
-### Analytics
-- `GET /api/analytics/dashboard` - Get dashboard statistics
-- `GET /api/analytics/revenue` - Get revenue trends
-- `GET /api/analytics/invoice-status` - Get invoice status distribution
-- `GET /api/analytics/payment-methods` - Get payment method distribution
-
-### Activity Log
-- `GET /api/activity-log` - Get activity logs
-- `POST /api/activity-log` - Create activity log entry
-- `GET /api/activity-log/entity/:entityType/:entityId` - Get activities for specific entity
-
-**Note**: Most endpoints require JWT authentication. Include the token in the `Authorization` header:
-```
-Authorization: Bearer <your-jwt-token>
-```
-
-## 🔐 Authentication Flow
-
-1. User registers or logs in via `/api/auth/register` or `/api/auth/login`
-2. Backend returns access token and refresh token
-3. Frontend stores tokens and includes access token in API requests
-4. When access token expires, frontend uses refresh token to get a new access token
-5. All protected routes require valid JWT token
-
-## 🗃️ Database Architecture
-
-### PostgreSQL (Primary Database)
-Stores all transactional and relational data:
-- **Organizations**: Multi-tenant organization data
-- **Users**: User accounts and authentication
-- **Clients**: Customer/client information
-- **Invoices**: Invoice records with line items
-- **Payments**: Payment transactions
-- **UserOrganizations**: Many-to-many relationship between users and organizations
-- **Roles**: Organization-specific roles and permissions
-
-### MongoDB (Activity Logs)
-Stores activity/audit logs:
-- **ActivityLog**: System activity and audit trail entries
-
-## 🧪 Development
-
-### Running Tests
-
-```bash
-# Backend tests
-cd backend
-npm run test
-npm run test:watch
-npm run test:cov
-
-# Frontend linting
-cd frontend
-npm run lint
-```
-
-### E2E Tests (Backend)
-
-E2E tests use a **test database**. Point `DATABASE_URL` to a dedicated test DB (do not use production).
-
-**Required E2E environment variables:**
-
-- **`DATABASE_URL`** – PostgreSQL connection string for the **test** database (e.g. `postgresql://user:pass@localhost:5432/ledgerx_test`).
-- **`STRIPE_WEBHOOK_SECRET`** – (optional) Used by webhook idempotency E2E; use a test value (e.g. `whsec_test_e2e`) if you run those tests.
-
-**How to run E2E locally:**
-
-1. Create a test database and set `DATABASE_URL` in `backend/.env` (or `backend/.env.test`) to that database.
-2. From the `backend` directory:
-   - **Full run (reset DB then E2E):**  
-     `npm run test:e2e`  
-     This runs `npm run test:reset-db` (drops schema, reapplies migrations) then runs all E2E tests.
-   - **Reset DB only:**  
-     `npm run test:reset-db`  
-     Drops the test DB schema and runs Prisma migrations.
-   - **E2E only (no reset):**  
-     `npm run test:e2e:only`  
-     Runs E2E tests without resetting the DB (useful after a manual reset or for debugging).
-
-**Smoke E2E coverage:**
-
-- Health endpoint (`GET /health`)
-- Auth: register and login
-- Create client, invoice, and payment via API (internal; no Stripe SDK dependency)
-- Optional: webhook idempotency (uses Stripe test header when `STRIPE_WEBHOOK_SECRET` is set)
-
-### Database Management
-
-```bash
-# Open Prisma Studio (database GUI)
-cd backend
-npm run prisma:studio
-
-# Create new migration
-npm run prisma:migrate
-
-# Reset database (WARNING: deletes all data)
-npx prisma migrate reset
-```
-
-### Code Formatting
-
-```bash
-# Backend
-cd backend
-npm run format
-
-# Frontend
-cd frontend
-npm run lint -- --fix
-```
-
-## 📊 Key Features Explained
-
-### Real-time Updates
-- Dashboard refreshes every 15 seconds
-- Activity log refreshes every 10 seconds
-- Analytics page refreshes every 30 seconds
-- All data automatically syncs when changes occur
-
-### Invoice Status Management
-- Automatically updates invoice status based on payments
-- Tracks partial payments and remaining balances
-- Updates status to "PAID" when fully paid
-- Maintains payment history per invoice
-
-### Multi-tenant Architecture
-- Each organization has isolated data
-- Users can belong to multiple organizations
-- Organization-scoped queries ensure data isolation
-- Role-based access control per organization
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Port already in use (EADDRINUSE)**
-```bash
-# Find process using port 3000
-netstat -ano | findstr :3000
-
-# Kill the process (Windows)
-taskkill /F /PID <process-id>
-```
-
-**Database connection errors**
-- Verify PostgreSQL is running
-- Check `DATABASE_URL` in `.env`
-- Ensure database exists: `CREATE DATABASE ledgerx;`
-
-**MongoDB connection errors**
-- Verify MongoDB is running (if local)
-- Check `MONGODB_URI` in `.env`
-- For Atlas, verify network access and credentials
-
-**Prisma client errors**
-```bash
-cd backend
-npx prisma generate
-```
-
-**401 Unauthorized errors**
-- Check if JWT token is expired
-- Verify token is included in request headers
-- Try logging out and logging back in
-
-## 📝 License
-
-This project is private and proprietary.
-
-## 👥 Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
-## 📞 Support
-
-For issues or questions, please contact the development team.
+Production-grade, multi-tenant fintech platform for invoicing, payments, double-entry ledger, audit, fraud awareness, and diagnostics. This README reflects only implemented features.
 
 ---
 
-**Built with NestJS, Next.js, PostgreSQL, and MongoDB**
+### 1. LedgerX Overview
+
+**What LedgerX is:** A full-stack application that lets organizations manage clients, invoices, payments, and a double-entry ledger with audit trails, fraud signals, and operational diagnostics. The backend is NestJS (TypeScript); the frontend is Next.js 14 (App Router).
+
+**Core problem it solves:** Multi-tenant invoicing and payments with a proper accounting layer (append-only ledger), compliance-friendly audit logs, fraud risk awareness and policy enforcement, and operator-facing diagnostics and remediation—all behind a single codebase with clear org isolation.
+
+**Target audience:** SMBs, finance teams, and organizations that need invoicing, payment recording, ledger integrity, and operational visibility without building each piece from scratch.
+
+---
+
+### 2. Key Capabilities (High-level)
+
+- **Multi-tenant organizations and roles:** Organizations as isolation boundary; users can belong to multiple orgs with org-specific roles (ADMIN, MANAGER, MEMBER).
+- **Auth and security:** JWT access and refresh tokens, password reset flow, token versioning for invalidation, role-based access, rate limiting on sensitive endpoints.
+- **Invoicing, payments, ledger:** CRUD for clients and invoices; payments linked to invoices; double-entry ledger with append-only transactions and hash chain; automatic ledger posts on payment completion.
+- **Audit, fraud, diagnostics:** Domain-event-driven audit and compliance records; fraud signal generation and org-level aggregation; diagnostics (aggregates, circuit state, reports, feature flags, scheduled jobs) and guarded remediation actions.
+- **Observability and resilience:** Health (liveness/readiness), Prometheus-style metrics, circuit breakers for payment providers, structured logging with correlation IDs, graceful shutdown.
+
+---
+
+### 3. Architecture Summary
+
+- **Backend:** NestJS on Node.js. PostgreSQL (Prisma) for core data; MongoDB (Mongoose) for activity logs. REST API under `/api`; health and metrics excluded from prefix (`/health`, `/health/ready`, `/metrics`).
+- **Frontend:** Next.js 14 with App Router, React 18, TypeScript. TanStack Query for server state; Axios for API; Tailwind for layout and styling.
+- **Payment providers:** Stripe and M-Pesa integrated via adapters and provider clients; webhooks handled with raw-body verification; circuit breakers wrap outbound calls.
+- **Event-driven internals:** DomainEventBus for payment-completed, ledger-posted, invoice-overdue, password-reset, and remediation-executed events; audit, fraud, and diagnostics consume or emit events.
+- **Deployment:** Backend on Render (Node, bind to `0.0.0.0`, PORT from env, health at `/health`). Frontend on Netlify. No Docker in the current setup.
+
+---
+
+### 4. Backend Features (Detailed but concise)
+
+- **Organizations and roles:** Organizations with slug; UserOrganization and Role (ADMIN, MANAGER, MEMBER) per org; org-scoped guards and queries.
+- **Auth:** Register (user + default org), login (access + refresh JWT), refresh endpoint, get-me and switch-organization. Password reset: forgot (token, email link via SMTP), reset (validate token, update password, increment tokenVersion). JWT strategies validate tokenVersion for invalidation. PasswordResetToken cleanup scheduler.
+- **Clients, invoices, payments:** Full CRUD with org scope. Invoices have line items, tax, status (DRAFT, SENT, PAID, OVERDUE, CANCELLED); status and balances updated from payments. Payments link to invoices; methods include CREDIT_CARD, BANK_TRANSFER, etc.
+- **Ledger:** Double-entry model (LedgerAccount, LedgerTransaction, LedgerEntry, LedgerHash). Post-transaction API; balance and account queries. LedgerBootstrapService creates default Cash and Revenue accounts for new orgs. Payment completion posts ledger entries.
+- **Payment orchestration and webhooks:** PaymentIntent model (Stripe/M-Pesa, idempotency by providerRef + org). WebhooksController with raw body for Stripe/M-Pesa; adapters parse payloads; PaymentOrchestratorService creates payments, emits events, posts ledger. StripeProviderClient and MpesaProviderClient wrap outbound calls with circuit breaker; M-Pesa OAuth and STK Push implemented.
+- **Fraud detection and policy:** FraudDetectionEvent, FraudSignal, FraudOrgAggregate. FraudDetectionService subscribes to events; FraudRiskService computes org risk and blocking policy. Fraud aggregation scheduler. Payments and orchestrator check shouldBlockOrganization / shouldBlockPayment before processing.
+- **Audit and compliance:** DomainEventAudit and AuditComplianceRecord. AuditComplianceService consumes domain events; AuditComplianceRecordService for richer trails. Read-only API: entity audit history, time-range export. Restricted to ADMIN/MANAGER.
+- **Diagnostics, remediation, feature flags:** DiagnosticsService (aggregates, rule-based reports, optional LLM summary); report history persisted. RemediationService for allowed actions (e.g. RESTART_PROCESS, CLEAR_CIRCUIT_BREAKER, TOGGLE_FEATURE_FLAG), fully audited. FeatureFlag model and FeatureFlagsService (DB-backed, scoped). ScheduledJobsRegistryService lists jobs. RestartService (Render deploy hook or process.exit). Diagnostics API restricted to ADMIN/MANAGER.
+- **Scheduled jobs:** Overdue invoices, password-reset token cleanup, fraud aggregation, optional audit cleanup; all registered for diagnostics visibility.
+
+---
+
+### 5. Frontend Features
+
+- **Auth and org switching:** Login, register, forgot password, reset password. AuthProvider with user, organization, organizations, refresh, switchOrganization. Protected routes; token refresh interceptor.
+- **Dashboard layout:** Nav: Dashboard, Invoices, Clients, Payments, Ledger, Analytics, Activity; Audit and Diagnostics only for ADMIN/MANAGER. User dropdown: Profile, Settings, Sign out. Org switcher when multiple orgs. Hamburger and slide-over drawer on small screens; active route highlight.
+- **Pages:** Dashboard (overview); Invoices (list, new, detail); Clients (list, new, edit); Payments (list, new); Ledger (accounts, balances, transactions, transaction detail); Analytics (stats, revenue, invoice status, payment completion charts); Activity (timeline); Audit (entity history, export); Fraud & Risk (org risk, flagged items); Diagnostics & Health (health badge, KPI cards, circuit breaker, reports, jobs, feature flags, optional raw view); Settings (protected).
+- **Responsiveness and UX:** Mobile nav; overflow-x on tables; typography and spacing; error boundary; toast context; API client with unwrapResponse/unwrapListResponse; typed services. Role-gated nav and “not authorized” messaging where applicable.
+
+---
+
+### 6. Observability, Reliability & Security
+
+- **Health checks:** GET `/health` (liveness); GET `/health/ready` (readiness with DB probe). Used by Render for health check path.
+- **Metrics and diagnostics:** Prometheus-style metrics (auth failures, payment failures, circuit opens, rate-limit exceeded); diagnostics snapshot for aggregates and circuits; no raw JSON in primary diagnostics UI—KPI cards and structured sections.
+- **Circuit breakers:** Per-provider (Stripe, M-Pesa); outbound provider calls go through provider clients; failures open circuit and avoid cascading load.
+- **Rate limiting:** SensitiveEndpointsRateLimitGuard (per-IP and per-org); optional Redis-backed store for distributed limits.
+- **Structured logging and correlation IDs:** RequestContextStore (AsyncLocalStorage); middleware/interceptor set correlation ID; structured JSON logs; secret redaction.
+- **Graceful shutdown:** Nest enableShutdownHooks(); SIGTERM handled for clean exit on Render.
+
+---
+
+### 7. Testing
+
+- **E2E scope:** Backend E2E with Jest; smoke tests for health, auth (register, login), clients, invoices, payments. Tests use a dedicated test database.
+- **Reset DB strategy:** `npm run test:reset-db` runs Prisma migrate reset (force). `npm run test:e2e` runs reset then E2E; `npm run test:e2e:only` runs E2E without reset for debugging.
+- **What is covered:** Critical paths for health, auth, and core CRUD. No full UI E2E; no Stripe/M-Pesa live provider tests in default suite. Webhook idempotency E2E can be run when STRIPE_WEBHOOK_SECRET is set (test value).
+
+---
+
+### 8. Configuration & Environment
+
+- **Required (minimum viable):** DATABASE_URL (PostgreSQL), MONGODB_URI, JWT_SECRET, JWT_REFRESH_SECRET. API_PREFIX, PORT, NODE_ENV have defaults. CORS_ORIGIN defaults to localhost; can be comma-separated for multiple origins.
+- **Optional integrations:** Stripe (webhook secret, keys for live usage); M-Pesa (base URL, consumer key/secret, shortcode, passkey, callback, timeout); Redis (REDIS_URL for rate limiting); SMTP (for password-reset emails); LLM (OpenAI key, model, timeout for diagnostics summaries); RENDER_DEPLOY_HOOK_URL or DEPLOY_HOOK_URL for restart remediation; audit/fraud cron expressions; feature flags and diagnostics retention/LLM flags. App starts without optional vars; corresponding features degrade or are disabled.
+
+---
+
+### 9. Deployment
+
+- **Backend (Render):** Root directory `backend`. Build: NODE_ENV=development npm install, npx prisma generate, npm run build. Start: npm run start:prod (or npm run start:render to run prisma migrate deploy then start). Health Check Path: `/health`. Bind to 0.0.0.0; PORT from env. See backend/DEPLOY_RENDER.md.
+- **Frontend (Netlify):** Build and start per Next.js; set NEXT_PUBLIC_API_URL to backend API base (e.g. https://your-backend.onrender.com/api). See frontend/DEPLOY_NETLIFY.md.
+- **Health paths and CORS:** Health is at `/health` and `/health/ready` (not under /api). CORS must include frontend origin(s); backend supports comma-separated CORS_ORIGIN and defaults for localhost and a Netlify URL.
+
+---
+
+### 10. Non-Goals
+
+- LedgerX is **not** a general-purpose ERP or CRM; it focuses on invoicing, payments, ledger, audit, fraud awareness, and diagnostics.
+- It is **not** a bank or payment processor; it records payments and can integrate with Stripe and M-Pesa; it does not replace provider compliance or licensing.
+- It does **not** provide real-time collaboration or native mobile apps; the UI is responsive web.
+- It does **not** currently use Docker or Kubernetes; deployment is Render + Netlify with Node and Next.js runtimes.
+- Heavy unit-test coverage is **not** a current focus; E2E smoke tests and operational diagnostics are prioritized for confidence.
+
+---
+
+**Built with NestJS, Next.js, PostgreSQL, and MongoDB.**
