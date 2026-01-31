@@ -49,6 +49,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
+    if (payload.tokenVersion !== user.tokenVersion) {
+      throw new UnauthorizedException('Session invalidated');
+    }
+
     const userOrg = user.userOrganizations[0];
     if (!userOrg.organization.isActive) {
       throw new UnauthorizedException('Organization is inactive');

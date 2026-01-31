@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { StructuredLoggerService } from '../common/structured-logger/structured-logger.service';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { PaymentIntentStatus } from '@prisma/client';
 
@@ -29,7 +30,7 @@ export interface BlockPolicyResult {
  */
 @Injectable()
 export class FraudRiskService {
-  private readonly logger = new Logger(FraudRiskService.name);
+  private readonly logger = new StructuredLoggerService(FraudRiskService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 

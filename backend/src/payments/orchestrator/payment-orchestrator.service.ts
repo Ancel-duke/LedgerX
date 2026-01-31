@@ -3,8 +3,8 @@ import {
   UnauthorizedException,
   BadRequestException,
   ForbiddenException,
-  Logger,
 } from '@nestjs/common';
+import { StructuredLoggerService } from '../../common/structured-logger/structured-logger.service';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PaymentProvider, PaymentIntentStatus } from '@prisma/client';
@@ -37,7 +37,7 @@ export interface HandleWebhookResult {
  */
 @Injectable()
 export class PaymentOrchestratorService {
-  private readonly logger = new Logger(PaymentOrchestratorService.name);
+  private readonly logger = new StructuredLoggerService(PaymentOrchestratorService.name);
   private readonly adapters: Map<PaymentProvider, IWebhookAdapter> = new Map();
 
   constructor(
@@ -79,7 +79,7 @@ export class PaymentOrchestratorService {
     try {
       payload = adapter.parsePayload(rawBody);
     } catch (err) {
-      this.logger.warn(`Webhook parse failed: ${(err as Error).message}`);
+      this.logger.warn('Webhook parse failed');
       throw new BadRequestException('Invalid webhook payload');
     }
 
@@ -106,9 +106,11 @@ export class PaymentOrchestratorService {
 
     const orgBlock = await this.fraudRiskService.shouldBlockOrganization(organizationId);
     if (orgBlock.block) {
-      this.logger.warn(
-        `Webhook blocked (org): organizationId=${organizationId}, providerRef=${providerRef}, reason=${orgBlock.reason ?? 'organization blocked'}`,
-      );
+      this.logger.warn('Webhook blocked (org)', {
+        organizationId,
+        providerRef,
+        reason: orgBlock.reason ?? 'organization blocked',
+      });
       throw new ForbiddenException(
         orgBlock.reason ?? 'Organization blocked by fraud policy',
       );
@@ -126,7 +128,7 @@ export class PaymentOrchestratorService {
 
     if (existing) {
       if (existing.status === PaymentIntentStatus.COMPLETED && existing.paymentId) {
-        this.logger.log(`Idempotent webhook: ${provider}:${providerRef}`);
+        this.logger.log('Idempotent webhook', { provider, providerRef });
         return {
           paymentIntentId: existing.id,
           paymentId: existing.paymentId,
@@ -194,9 +196,12 @@ export class PaymentOrchestratorService {
 
     const paymentBlock = await this.fraudRiskService.shouldBlockPayment(organizationId, payment.id);
     if (paymentBlock.block) {
-      this.logger.warn(
-        `Webhook blocked (payment): organizationId=${organizationId}, paymentId=${payment.id}, providerRef=${providerRef}, reason=${paymentBlock.reason ?? 'payment blocked'}`,
-      );
+      this.logger.warn('Webhook blocked (payment)', {
+        organizationId,
+        paymentId: payment.id,
+        providerRef,
+        reason: paymentBlock.reason ?? 'payment blocked',
+      });
       throw new ForbiddenException(
         paymentBlock.reason ?? 'Payment blocked by fraud policy',
       );
@@ -250,9 +255,7 @@ export class PaymentOrchestratorService {
       const assetAccount = accounts.find((a) => a.type === 'ASSET');
       const revenueAccount = accounts.find((a) => a.type === 'REVENUE');
       if (!assetAccount || !revenueAccount) {
-        this.logger.warn(
-          'Ledger accounts (ASSET/REVENUE) not configured; skipping ledger post',
-        );
+        this.logger.warn('Ledger accounts (ASSET/REVENUE) not configured; skipping ledger post');
         return;
       }
       const amountCents = Math.round(amount * 100);
@@ -266,9 +269,8 @@ export class PaymentOrchestratorService {
         ],
       });
     } catch (err) {
-      this.logger.error(
-        `Ledger post failed for payment ${paymentId}: ${(err as Error).message}`,
-      );
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Ledger post failed for payment', { paymentId }, e);
     }
   }
 }

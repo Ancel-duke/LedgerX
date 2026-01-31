@@ -46,7 +46,11 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     });
 
     if (!user || !user.isActive || user.userOrganizations.length === 0) {
-      throw new UnauthorizedException('User not found or inactive');
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (payload.tokenVersion !== user.tokenVersion) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
     const userOrg = user.userOrganizations[0];

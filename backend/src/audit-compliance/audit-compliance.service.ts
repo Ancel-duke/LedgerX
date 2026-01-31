@@ -1,11 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/postgres/prisma.service';
+import { StructuredLoggerService } from '../common/structured-logger/structured-logger.service';
 import {
   PAYMENT_COMPLETED,
   LEDGER_TRANSACTION_POSTED,
   INVOICE_OVERDUE,
+  PASSWORD_RESET_REQUESTED,
+  PASSWORD_RESET_COMPLETED,
 } from '../domain-events/events';
+
+const AUTH_AUDIT_ORG_ID = 'auth';
 
 /**
  * Audit & Compliance: consumes domain events and writes to audit store only.
@@ -13,7 +18,7 @@ import {
  */
 @Injectable()
 export class AuditComplianceService {
-  private readonly logger = new Logger(AuditComplianceService.name);
+  private readonly logger = new StructuredLoggerService(AuditComplianceService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -52,6 +57,16 @@ export class AuditComplianceService {
     await this.record(INVOICE_OVERDUE, organizationId, payload);
   }
 
+  @OnEvent(PASSWORD_RESET_REQUESTED)
+  async handlePasswordResetRequested(payload: { userId: string }) {
+    await this.record(PASSWORD_RESET_REQUESTED, AUTH_AUDIT_ORG_ID, payload);
+  }
+
+  @OnEvent(PASSWORD_RESET_COMPLETED)
+  async handlePasswordResetCompleted(payload: { userId: string }) {
+    await this.record(PASSWORD_RESET_COMPLETED, AUTH_AUDIT_ORG_ID, payload);
+  }
+
   private async record(
     eventType: string,
     organizationId: string,
@@ -66,9 +81,8 @@ export class AuditComplianceService {
         },
       });
     } catch (err) {
-      this.logger.error(
-        `Audit record failed [${eventType}]: ${(err as Error).message}`,
-      );
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Audit record failed', { eventType }, e);
     }
   }
 }

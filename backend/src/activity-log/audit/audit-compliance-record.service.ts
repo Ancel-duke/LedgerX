@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../../database/postgres/prisma.service';
+import { StructuredLoggerService } from '../../common/structured-logger/structured-logger.service';
 import { createHash } from 'crypto';
 import { PAYMENT_COMPLETED, LEDGER_TRANSACTION_POSTED } from '../../domain-events/events';
 
@@ -16,7 +17,7 @@ const ENTITY_LEDGER_TRANSACTION = 'LEDGER_TRANSACTION';
  */
 @Injectable()
 export class AuditComplianceRecordService {
-  private readonly logger = new Logger(AuditComplianceRecordService.name);
+  private readonly logger = new StructuredLoggerService(AuditComplianceRecordService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -96,9 +97,8 @@ export class AuditComplianceRecordService {
         },
       });
     } catch (err) {
-      this.logger.error(
-        `Audit compliance record failed [${params.eventType}]: ${(err as Error).message}`,
-      );
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Audit compliance record failed', { eventType: params.eventType }, e);
     }
   }
 

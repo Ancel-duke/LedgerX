@@ -1,4 +1,4 @@
-import { Global, Module, Logger } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 
@@ -8,10 +8,14 @@ import { ConfigService } from '@nestjs/config';
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService) => {
         const uri = configService.get<string>('database.mongodb.uri');
-        const logger = new Logger('MongoModule');
-        
-        logger.log('Connecting to MongoDB Atlas...');
-        
+        process.stdout.write(
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'log',
+            context: 'MongoModule',
+            message: 'Connecting to MongoDB Atlas',
+          }) + '\n',
+        );
         return {
           uri,
           retryWrites: true,

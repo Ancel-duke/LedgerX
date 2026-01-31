@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { StructuredLoggerService } from '../common/structured-logger/structured-logger.service';
 
 /**
  * In-process domain event bus. Publishes events asynchronously (non-blocking);
@@ -8,7 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
  */
 @Injectable()
 export class DomainEventBus {
-  private readonly logger = new Logger(DomainEventBus.name);
+  private readonly logger = new StructuredLoggerService(DomainEventBus.name);
 
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
@@ -20,7 +21,8 @@ export class DomainEventBus {
     this.eventEmitter
       .emitAsync(eventName, payload)
       .catch((err) => {
-        this.logger.error(`Domain event handler error [${eventName}]: ${(err as Error).message}`);
+        const e = err instanceof Error ? err : new Error(String(err));
+        this.logger.error('Domain event handler error', { eventName }, e);
       });
   }
 }

@@ -1,10 +1,11 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
+import { StructuredLoggerService } from '../../common/structured-logger/structured-logger.service';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(PrismaService.name);
+  private readonly logger = new StructuredLoggerService(PrismaService.name);
 
   constructor() {
     super({
@@ -22,12 +23,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // Auto-run migrations on startup for Render free tier (no shell access)
       if (process.env.NODE_ENV === 'production' && process.env.AUTO_MIGRATE !== 'false') {
         try {
-          this.logger.log('Running database migrations...');
+          this.logger.log('Running database migrations');
           execSync('npx prisma migrate deploy', { 
             stdio: 'inherit',
             env: { ...process.env, NODE_ENV: 'production' }
           });
-          this.logger.log('Database migrations completed');
+          this.logger.log('Database migrations completed', {});
         } catch (migrationError: any) {
           const errorMessage = migrationError.message || migrationError.toString() || '';
           const errorOutput = migrationError.stdout?.toString() || migrationError.stderr?.toString() || '';
@@ -39,7 +40,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               fullError.includes('failed migrations') ||
               fullError.includes('failed to apply') ||
               fullError.includes('already exists')) {
-            this.logger.warn('Migration conflict detected. Attempting to resolve...');
+            this.logger.warn('Migration conflict detected. Attempting to resolve');
             try {
               // Extract migration name from error if possible
               const migrationMatch = fullError.match(/Migration name: (\d+_\w+)/);
@@ -57,7 +58,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                     stdio: 'pipe',
                     env: { ...process.env, NODE_ENV: 'production' }
                   });
-                  this.logger.log(`Successfully resolved migration: ${migrationName}`);
+                  this.logger.log('Successfully resolved migration', { migrationName });
                   resolved = true;
                   break;
                 } catch (resolveError) {
@@ -73,32 +74,33 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                     stdio: 'pipe',
                     env: { ...process.env, NODE_ENV: 'production' }
                   });
-                  this.logger.log('Migrations completed after resolution');
+                  this.logger.log('Migrations completed after resolution', {});
                 } catch (retryError) {
-                  this.logger.warn('Migration retry completed (may already be up to date)');
+                  this.logger.warn('Migration retry completed (may already be up to date)', {});
                 }
               } else {
-                this.logger.warn('Could not auto-resolve migration, but continuing (database may already be up to date)');
+                this.logger.warn('Could not auto-resolve migration, but continuing (database may already be up to date)', {});
               }
             } catch (resolveError) {
-              this.logger.warn('Could not auto-resolve migration. Database may already be up to date.');
+              this.logger.warn('Could not auto-resolve migration. Database may already be up to date', {});
             }
           } else {
-            this.logger.warn('Migration check completed (this is OK if already migrated)');
+            this.logger.warn('Migration check completed (this is OK if already migrated)', {});
           }
         }
       }
 
       await this.$connect();
-      this.logger.log('PostgreSQL database connected successfully');
+      this.logger.log('PostgreSQL database connected successfully', {});
     } catch (error) {
-      this.logger.error('Failed to connect to PostgreSQL database', error);
+      const e = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Failed to connect to PostgreSQL database', undefined, e);
       throw error;
     }
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-    this.logger.log('PostgreSQL database disconnected');
+    this.logger.log('PostgreSQL database disconnected', {});
   }
 }

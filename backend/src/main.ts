@@ -1,22 +1,42 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
 import { ObservabilityInterceptor } from './common/interceptors/observability.interceptor';
+import { RequestContextInterceptor } from './common/request-context/request-context.interceptor';
+import { getRequestContext } from './common/request-context/request-context';
 import { MetricsService } from './metrics/metrics.service';
 
-const logger = new Logger('Bootstrap');
+function logProcessError(level: 'uncaughtException' | 'unhandledRejection', payload: Record<string, unknown>): void {
+  const ctx = getRequestContext();
+  const out = {
+    timestamp: new Date().toISOString(),
+    level: 'error',
+    context: 'Bootstrap',
+    event: level,
+    ...(ctx?.requestId && { requestId: ctx.requestId }),
+    ...payload,
+  };
+  process.stderr.write(JSON.stringify(out) + '\n');
+}
 
-process.on('uncaughtException', (err) => {
-  logger.error(`Uncaught exception: ${err?.message}`, err?.stack);
+process.on('uncaughtException', (err: Error) => {
+  logProcessError('uncaughtException', {
+    message: err?.message ?? String(err),
+    stack: err?.stack,
+  });
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error(`Unhandled rejection at ${promise}, reason: ${reason}`);
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  logProcessError('unhandledRejection', {
+    message: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+    promise: String(promise),
+  });
   process.exit(1);
 });
 
@@ -53,7 +73,9 @@ async function bootstrap() {
   );
 
   const metricsService = app.get(MetricsService);
+  const requestContextInterceptor = app.get(RequestContextInterceptor);
   app.useGlobalInterceptors(
+    requestContextInterceptor,
     new ObservabilityInterceptor(metricsService),
     new TransformInterceptor(),
     new ErrorsInterceptor(),
@@ -84,7 +106,14 @@ async function bootstrap() {
   const port = process.env.PORT || configService.get<number>('app.port') || 3000;
   await app.listen(port);
 
-  logger.log(`Application is running on: http://localhost:${port}/${apiPrefix}`);
+  process.stdout.write(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'log',
+      context: 'Bootstrap',
+      message: `Application is running on: http://localhost:${port}/${apiPrefix}`,
+    }) + '\n',
+  );
 }
 
 bootstrap();

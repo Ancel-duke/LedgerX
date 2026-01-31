@@ -7,12 +7,22 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { UsersService } from '../users/users.service';
 import { LedgerBootstrapService } from '../ledger/ledger-bootstrap.service';
+import { DomainEventBus } from '../domain-events/domain-event-bus.service';
+import {
+  PASSWORD_RESET_REQUESTED,
+  PASSWORD_RESET_COMPLETED,
+} from '../domain-events/events';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+
+const RESET_TOKEN_EXPIRY_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
@@ -22,6 +32,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private ledgerBootstrapService: LedgerBootstrapService,
+    private domainEventBus: DomainEventBus,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -97,7 +108,7 @@ export class AuthService {
       },
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, 'ADMIN', organization.id);
+    const tokens = await this.generateTokens(user.id, user.email, 'ADMIN', organization.id, user.tokenVersion);
 
     return {
       user: {
@@ -153,7 +164,7 @@ export class AuthService {
     });
 
     const roleName = userOrg.role.name;
-    const tokens = await this.generateTokens(user.id, user.email, roleName, userOrg.organizationId);
+    const tokens = await this.generateTokens(user.id, user.email, roleName, userOrg.organizationId, user.tokenVersion);
 
     return {
       user: {
@@ -166,6 +177,87 @@ export class AuthService {
       },
       ...tokens,
     };
+  }
+
+  /**
+   * Forgot password: always returns 200 to prevent email enumeration.
+   * If user exists, creates single-use reset token (hashed + expiry) and emits PASSWORD_RESET_REQUESTED.
+   * Never log or expose the raw token.
+   */
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    const email = dto.email?.trim()?.toLowerCase();
+    if (!email) {
+      return { message: 'If an account exists, you will receive reset instructions.' };
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email, isActive: true, deletedAt: null },
+    });
+
+    if (user) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000);
+
+      await this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt,
+        },
+      });
+
+      this.domainEventBus.publish(PASSWORD_RESET_REQUESTED, { userId: user.id });
+
+      // In a real app you would send rawToken via email here (or via a queue).
+      // We do NOT log rawToken. The event payload has userId only (no email).
+    }
+
+    return { message: 'If an account exists, you will receive reset instructions.' };
+  }
+
+  /**
+   * Reset password: validates token (hash + expiry, single-use), updates password,
+   * increments tokenVersion to invalidate all existing JWTs, emits PASSWORD_RESET_COMPLETED.
+   */
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const tokenHash = crypto.createHash('sha256').update(dto.token).digest('hex');
+    const now = new Date();
+
+    const resetRecord = await this.prisma.passwordResetToken.findFirst({
+      where: {
+        tokenHash,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      include: { user: true },
+    });
+
+    if (!resetRecord) {
+      throw new BadRequestException('Invalid or expired reset token.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: resetRecord.userId },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: resetRecord.id },
+        data: { usedAt: now },
+      }),
+    ]);
+
+    this.domainEventBus.publish(PASSWORD_RESET_COMPLETED, {
+      userId: resetRecord.userId,
+    });
+
+    return { message: 'Password has been reset. You can sign in with your new password.' };
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
@@ -195,15 +287,25 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
+      if (payload.tokenVersion !== user.tokenVersion) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
       const userOrg = user.userOrganizations[0];
-      return await this.generateTokens(user.id, user.email, userOrg.role.name, userOrg.organizationId);
+      return await this.generateTokens(user.id, user.email, userOrg.role.name, userOrg.organizationId, user.tokenVersion);
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
-  private async generateTokens(userId: string, email: string, role: string, organizationId: string) {
-    const payload = { sub: userId, email, role, organizationId };
+  private async generateTokens(
+    userId: string,
+    email: string,
+    role: string,
+    organizationId: string,
+    tokenVersion: number,
+  ) {
+    const payload = { sub: userId, email, role, organizationId, tokenVersion };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {

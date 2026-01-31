@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { StructuredLoggerService } from '../common/structured-logger/structured-logger.service';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { PAYMENT_COMPLETED, LEDGER_TRANSACTION_POSTED } from '../domain-events/events';
@@ -10,7 +11,7 @@ import { FraudRiskService } from './fraud-risk.service';
  */
 @Injectable()
 export class FraudDetectionService {
-  private readonly logger = new Logger(FraudDetectionService.name);
+  private readonly logger = new StructuredLoggerService(FraudDetectionService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,9 +45,8 @@ export class FraudDetectionService {
         isFlagged,
       );
     } catch (err) {
-      this.logger.error(
-        `Fraud risk compute failed [PaymentCompleted]: ${(err as Error).message}`,
-      );
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Fraud risk compute failed', { eventType: PAYMENT_COMPLETED }, e);
     }
   }
 
@@ -74,9 +74,8 @@ export class FraudDetectionService {
         isFlagged,
       );
     } catch (err) {
-      this.logger.error(
-        `Fraud risk compute failed [LedgerTransactionPosted]: ${(err as Error).message}`,
-      );
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Fraud risk compute failed', { eventType: LEDGER_TRANSACTION_POSTED }, e);
     }
   }
 
@@ -101,9 +100,8 @@ export class FraudDetectionService {
         },
       });
     } catch (err) {
-      this.logger.error(
-        `Fraud event record failed [${eventType}]: ${(err as Error).message}`,
-      );
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Fraud event record failed', { eventType }, e);
     }
   }
 
@@ -126,9 +124,8 @@ export class FraudDetectionService {
         },
       });
     } catch (err) {
-      this.logger.error(
-        `Fraud event record failed [${eventType}]: ${(err as Error).message}`,
-      );
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Fraud event record failed', { eventType }, e);
     }
   }
 

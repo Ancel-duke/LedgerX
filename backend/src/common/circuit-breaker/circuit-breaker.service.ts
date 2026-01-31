@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { StructuredLoggerService } from '../structured-logger/structured-logger.service';
 import { MetricsService } from '../../metrics/metrics.service';
 import { ProviderUnavailableException } from '../exceptions/provider-unavailable.exception';
 
@@ -19,7 +20,7 @@ export interface CircuitBreakerOptions {
  */
 @Injectable()
 export class CircuitBreakerService {
-  private readonly logger = new Logger(CircuitBreakerService.name);
+  private readonly logger = new StructuredLoggerService(CircuitBreakerService.name);
   constructor(private readonly metricsService: MetricsService) {}
   private readonly circuits = new Map<
     string,
@@ -44,7 +45,7 @@ export class CircuitBreakerService {
     this.maybeTransition(key, circuit);
 
     if (circuit.state === 'open') {
-      this.logger.warn(`Circuit open [${key}], rejecting call`);
+      this.logger.warn('Circuit open, rejecting call', { key });
       throw new ProviderUnavailableException(key);
     }
 
@@ -58,7 +59,7 @@ export class CircuitBreakerService {
         circuit.state = 'closed';
         circuit.failures = 0;
         circuit.lastFailureAt = null;
-        this.logger.log(`Circuit closed [${key}] after successful call`);
+        this.logger.log('Circuit closed after successful call', { key });
       }
       return result;
     } catch (err) {
@@ -67,9 +68,10 @@ export class CircuitBreakerService {
       if (circuit.failures >= circuit.options.failureThreshold) {
         circuit.state = 'open';
         this.metricsService.recordCircuitOpen(key);
-        this.logger.warn(
-          `Circuit opened [${key}] after ${circuit.failures} failures`,
-        );
+        this.logger.warn('Circuit opened after failures', {
+          key,
+          failures: circuit.failures,
+        });
       }
       throw err;
     }
@@ -112,7 +114,7 @@ export class CircuitBreakerService {
       (Date.now() - (circuit.lastFailureAt ?? 0)) / 1000;
     if (elapsed >= circuit.options.resetAfterSeconds) {
       circuit.state = 'half_open';
-      this.logger.log(`Circuit half-open [${key}], allowing one call`);
+      this.logger.log('Circuit half-open, allowing one call', { key });
     }
   }
 }

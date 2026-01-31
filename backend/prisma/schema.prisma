@@ -100,6 +100,7 @@ model User {
   passwordHash   String
   firstName      String
   lastName       String
+  tokenVersion   Int      @default(0) // Incremented on password reset to invalidate all JWTs
   isActive       Boolean  @default(true)
   lastLoginAt    DateTime?
   deletedAt      DateTime?
@@ -107,11 +108,29 @@ model User {
   updatedAt      DateTime @updatedAt
 
   // Relations
-  userOrganizations UserOrganization[]
+  userOrganizations   UserOrganization[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   @@index([isActive, deletedAt])
   @@map("users")
+}
+
+// Single-use password reset token (hashed; never log or expose raw token)
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    // SHA-256 hash of the token sent to user
+  expiresAt DateTime
+  usedAt    DateTime? // Set when token is consumed (single-use)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 // Many-to-many relationship between User and Organization
@@ -423,6 +442,6 @@ model FraudSignal {
   @@unique([organizationId, entityType, entityId])
   @@index([organizationId])
   @@index([organizationId, isFlagged])
-  @@index([entityType], [entityId])
+  @@index([entityType, entityId])
   @@map("fraud_signals")
 }

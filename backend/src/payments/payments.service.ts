@@ -3,8 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
-  Logger,
 } from '@nestjs/common';
+import { StructuredLoggerService } from '../common/structured-logger/structured-logger.service';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -19,7 +19,7 @@ import { FraudRiskService } from '../fraud-detection/fraud-risk.service';
 
 @Injectable()
 export class PaymentsService {
-  private readonly logger = new Logger(PaymentsService.name);
+  private readonly logger = new StructuredLoggerService(PaymentsService.name);
 
   constructor(
     private prisma: PrismaService,
@@ -32,9 +32,10 @@ export class PaymentsService {
   async create(organizationId: string, userId: string, createPaymentDto: CreatePaymentDto) {
     const orgBlock = await this.fraudRiskService.shouldBlockOrganization(organizationId);
     if (orgBlock.block) {
-      this.logger.warn(
-        `Payment creation blocked: organizationId=${organizationId}, reason=${orgBlock.reason ?? 'organization blocked'}`,
-      );
+      this.logger.warn('Payment creation blocked', {
+        organizationId,
+        reason: orgBlock.reason ?? 'organization blocked',
+      });
       throw new ForbiddenException(
         orgBlock.reason ?? 'Organization blocked by fraud policy',
       );
@@ -158,8 +159,8 @@ export class PaymentsService {
         },
       );
     } catch (error) {
-      // Log error but don't fail payment creation
-      console.error('Failed to log payment activity:', error);
+      const e = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Failed to log payment activity', undefined, e);
     }
 
     return payment;
@@ -295,18 +296,22 @@ export class PaymentsService {
       ) {
         const orgBlock = await this.fraudRiskService.shouldBlockOrganization(organizationId);
         if (orgBlock.block) {
-          this.logger.warn(
-            `Payment update blocked (org): organizationId=${organizationId}, paymentId=${id}, reason=${orgBlock.reason ?? 'organization blocked'}`,
-          );
+          this.logger.warn('Payment update blocked (org)', {
+            organizationId,
+            paymentId: id,
+            reason: orgBlock.reason ?? 'organization blocked',
+          });
           throw new ForbiddenException(
             orgBlock.reason ?? 'Organization blocked by fraud policy',
           );
         }
         const paymentBlock = await this.fraudRiskService.shouldBlockPayment(organizationId, id);
         if (paymentBlock.block) {
-          this.logger.warn(
-            `Payment update blocked (payment): organizationId=${organizationId}, paymentId=${id}, reason=${paymentBlock.reason ?? 'payment blocked'}`,
-          );
+          this.logger.warn('Payment update blocked (payment)', {
+            organizationId,
+            paymentId: id,
+            reason: paymentBlock.reason ?? 'payment blocked',
+          });
           throw new ForbiddenException(
             paymentBlock.reason ?? 'Payment blocked by fraud policy',
           );

@@ -5,27 +5,24 @@ import {
   CallHandler,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { StructuredLoggerService } from '../structured-logger/structured-logger.service';
 
 @Injectable()
 export class ErrorsInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(ErrorsInterceptor.name);
+  private readonly logger = new StructuredLoggerService(ErrorsInterceptor.name);
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
-      catchError((error) => {
+      catchError((error: unknown) => {
         if (error instanceof HttpException) {
           return throwError(() => error);
         }
 
-        this.logger.error(
-          `Unhandled error: ${error.message}`,
-          error.stack,
-          context.getClass().name,
-        );
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.logger.error('Unhandled error', { message: err.message }, err);
 
         return throwError(
           () =>

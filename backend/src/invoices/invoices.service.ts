@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/postgres/prisma.service';
+import { StructuredLoggerService } from '../common/structured-logger/structured-logger.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { InvoiceStatus } from '@prisma/client';
@@ -9,6 +10,8 @@ import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class InvoicesService {
+  private readonly logger = new StructuredLoggerService(InvoicesService.name);
+
   constructor(
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
@@ -101,8 +104,8 @@ export class InvoicesService {
         },
       },
     ).catch((err) => {
-      // Log error but don't fail invoice creation
-      console.error('Failed to log invoice creation activity:', err);
+      const e = err instanceof Error ? err : new Error(String(err));
+      this.logger.error('Failed to log invoice creation activity', undefined, e);
     });
 
     return invoice;
