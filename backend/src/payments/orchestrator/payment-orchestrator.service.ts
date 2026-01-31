@@ -12,6 +12,7 @@ import { PaymentsService } from '../payments.service';
 import { LedgerService } from '../../ledger/ledger.service';
 import { DomainEventBus } from '../../domain-events/domain-event-bus.service';
 import { PAYMENT_COMPLETED } from '../../domain-events/events';
+import { MetricsService } from '../../metrics/metrics.service';
 import { IWebhookAdapter } from './interfaces/webhook-adapter.interface';
 import { ParsedWebhookPayload } from './types/parsed-webhook-payload';
 import { LedgerEntryDirection } from '@prisma/client';
@@ -42,6 +43,7 @@ export class PaymentOrchestratorService {
     private readonly paymentsService: PaymentsService,
     private readonly ledgerService: LedgerService,
     private readonly domainEventBus: DomainEventBus,
+    private readonly metricsService: MetricsService,
     mpesaAdapter: MpesaAdapter,
     stripeAdapter: StripeAdapter,
   ) {
@@ -173,6 +175,7 @@ export class PaymentOrchestratorService {
         where: { id: intent.id },
         data: { status: PaymentIntentStatus.FAILED },
       });
+      this.metricsService.recordPaymentFailure('orchestrator');
       throw err;
     }
 

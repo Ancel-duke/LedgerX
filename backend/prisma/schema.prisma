@@ -408,3 +408,21 @@ model FraudDetectionEvent {
   @@index([createdAt])
   @@map("fraud_detection_events")
 }
+
+// Fraud signals: computed risk scores per entity (no mutation of payments/ledger)
+model FraudSignal {
+  id             String   @id @default(uuid())
+  organizationId String
+  entityType     String   // PAYMENT | LEDGER_TRANSACTION
+  entityId       String
+  riskScore      Int      // 0-100
+  factors        Json     // { amountAnomalyScore?, frequencyScore?, failedAttemptsScore? }
+  isFlagged      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, entityType, entityId])
+  @@index([organizationId])
+  @@index([organizationId, isFlagged])
+  @@index([entityType], [entityId])
+  @@map("fraud_signals")
+}

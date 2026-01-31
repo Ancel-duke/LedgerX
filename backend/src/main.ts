@@ -1,13 +1,29 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
+import { ObservabilityInterceptor } from './common/interceptors/observability.interceptor';
+import { MetricsService } from './metrics/metrics.service';
+
+const logger = new Logger('Bootstrap');
+
+process.on('uncaughtException', (err) => {
+  logger.error(`Uncaught exception: ${err?.message}`, err?.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error(`Unhandled rejection at ${promise}, reason: ${reason}`);
+  process.exit(1);
+});
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.enableShutdownHooks();
 
   const configService = app.get(ConfigService);
   const apiPrefix = configService.get<string>('app.apiPrefix') || 'api';
@@ -21,7 +37,9 @@ async function bootstrap() {
     express.raw({ type: 'application/json' }),
   );
 
-  app.setGlobalPrefix(apiPrefix);
+  app.setGlobalPrefix(apiPrefix, {
+    exclude: ['health', 'health/(.*)', 'metrics'],
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -34,7 +52,12 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new TransformInterceptor(), new ErrorsInterceptor());
+  const metricsService = app.get(MetricsService);
+  app.useGlobalInterceptors(
+    new ObservabilityInterceptor(metricsService),
+    new TransformInterceptor(),
+    new ErrorsInterceptor(),
+  );
 
   // Support multiple CORS origins (comma-separated string or array)
   // Default origins include localhost and Netlify production URL
@@ -61,7 +84,7 @@ async function bootstrap() {
   const port = process.env.PORT || configService.get<number>('app.port') || 3000;
   await app.listen(port);
 
-  console.log(`Application is running on: http://localhost:${port}/${apiPrefix}`);
+  logger.log(`Application is running on: http://localhost:${port}/${apiPrefix}`);
 }
 
 bootstrap();

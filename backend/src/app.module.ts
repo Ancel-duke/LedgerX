@@ -3,6 +3,9 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule } from './config/config.module';
 import { PostgresModule } from './database/postgres/postgres.module';
 import { MongoModule } from './database/mongo/mongo.module';
+import { HealthModule } from './health/health.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { CircuitBreakerModule } from './common/circuit-breaker/circuit-breaker.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
@@ -21,6 +24,9 @@ import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
     ConfigModule,
     EventEmitterModule.forRoot(),
     DomainEventsModule,
+    HealthModule,
+    MetricsModule,
+    CircuitBreakerModule,
     PostgresModule,
     MongoModule,
     AuthModule,
