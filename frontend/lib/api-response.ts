@@ -24,7 +24,9 @@ export function asArray<T>(value: unknown): T[] {
 export function unwrapListResponse<T, M = { total?: number; page?: number; limit?: number; totalPages?: number }>(
   res: { data?: unknown },
 ): { data: T[]; meta?: M } {
-  const raw = unwrapResponse<{ data?: T[]; meta?: M } | T[]>(res);
+  const raw = unwrapResponse<{ data?: T[]; meta?: M } | T[]>(
+    res as { data?: { data?: T[]; meta?: M } | T[]; [key: string]: unknown },
+  );
   if (Array.isArray(raw)) return { data: raw };
   const list = raw && typeof raw === 'object' && 'data' in (raw as object) ? (raw as { data?: T[] }).data : raw;
   return {

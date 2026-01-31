@@ -2,10 +2,15 @@ import { apiClient } from './api-client';
 import { unwrapResponse } from '@/lib/api-response';
 import type { Invoice, CreateInvoiceDto, UpdateInvoiceDto } from '@/types';
 
+export interface InvoiceListResponse {
+  data: Invoice[];
+  meta?: { page: number; limit: number; total: number; totalPages?: number };
+}
+
 class InvoicesService {
-  async getAll(params?: { page?: number; limit?: number; status?: string }) {
+  async getAll(params?: { page?: number; limit?: number; status?: string }): Promise<InvoiceListResponse> {
     const response = await apiClient.get('/invoices', { params });
-    return unwrapResponse(response.data);
+    return unwrapResponse<InvoiceListResponse>(response.data) ?? { data: [] };
   }
 
   async getById(id: string) {

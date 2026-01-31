@@ -109,11 +109,11 @@ export default function DiagnosticsPage() {
                   {loading ? '—' : readinessOk ? 'Ready' : 'Not ready'}
                 </span>
               </span>
-              {lastCheckAt && (
+              {typeof lastCheckAt === 'string' ? (
                 <span className="text-neutral-500">
                   Last check: {new Date(lastCheckAt).toLocaleString()}
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
         </Card>
