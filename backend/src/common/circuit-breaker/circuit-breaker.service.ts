@@ -84,6 +84,27 @@ export class CircuitBreakerService {
     return c.state;
   }
 
+  /** List all circuit keys and their current state (for diagnostics). */
+  listCircuits(): Array<{ key: string; state: CircuitState; failures: number }> {
+    const result: Array<{ key: string; state: CircuitState; failures: number }> = [];
+    for (const [key, circuit] of this.circuits) {
+      this.maybeTransition(key, circuit);
+      result.push({ key, state: circuit.state, failures: circuit.failures });
+    }
+    return result;
+  }
+
+  /** Clear (reset) a circuit to closed state. Used by diagnostics remediation only when approved. */
+  clearCircuit(key: string): void {
+    const c = this.circuits.get(key);
+    if (c) {
+      c.state = 'closed';
+      c.failures = 0;
+      c.lastFailureAt = null;
+      this.logger.log('Circuit cleared by remediation', { key });
+    }
+  }
+
   private getOrCreate(
     key: string,
     options: CircuitBreakerOptions,

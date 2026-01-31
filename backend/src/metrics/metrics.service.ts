@@ -6,6 +6,7 @@ const AUTH_FAILURES_TOTAL = 'auth_failures_total';
 const PAYMENT_FAILURES_TOTAL = 'payment_failures_total';
 const CIRCUIT_OPEN_TOTAL = 'circuit_open_total';
 const CIRCUIT_HALF_OPEN_ATTEMPTS_TOTAL = 'circuit_half_open_attempts_total';
+const RATE_LIMIT_EXCEEDED_TOTAL = 'rate_limit_exceeded_total';
 
 @Injectable()
 export class MetricsService {
@@ -15,6 +16,7 @@ export class MetricsService {
   private readonly paymentFailures: Counter<string>;
   private readonly circuitOpenTotal: Counter<string>;
   private readonly circuitHalfOpenAttemptsTotal: Counter<string>;
+  private readonly rateLimitExceededTotal: Counter<string>;
 
   constructor() {
     this.register = new Registry();
@@ -49,6 +51,12 @@ export class MetricsService {
       labelNames: ['provider'],
       registers: [this.register],
     });
+    this.rateLimitExceededTotal = new Counter({
+      name: RATE_LIMIT_EXCEEDED_TOTAL,
+      help: 'Total number of requests rejected due to rate limit',
+      labelNames: ['scope'],
+      registers: [this.register],
+    });
   }
 
   recordRequestDuration(method: string, path: string, statusCode: number, durationSeconds: number): void {
@@ -75,8 +83,34 @@ export class MetricsService {
     this.circuitHalfOpenAttemptsTotal.inc({ provider });
   }
 
+  recordRateLimitExceeded(scope: 'ip' | 'org'): void {
+    this.rateLimitExceededTotal.inc({ scope });
+  }
+
   async getMetrics(): Promise<string> {
     return this.register.metrics();
+  }
+
+  /** Snapshot of counter values for diagnostics (read-only). */
+  async getDiagnosticsSnapshot(): Promise<{
+    authFailuresTotal: number;
+    paymentFailuresTotal: number;
+    circuitOpenTotal: number;
+    rateLimitExceededTotal: number;
+  }> {
+    const metrics = await this.register.getMetricsAsJSON();
+    const sum = (name: string): number => {
+      const m = metrics.find((x: { name: string }) => x.name === name);
+      if (!m || !('values' in m)) return 0;
+      const values = (m as { values?: Array<{ value: number }> }).values;
+      return values?.reduce((s, v) => s + v.value, 0) ?? 0;
+    };
+    return {
+      authFailuresTotal: sum(AUTH_FAILURES_TOTAL),
+      paymentFailuresTotal: sum(PAYMENT_FAILURES_TOTAL),
+      circuitOpenTotal: sum(CIRCUIT_OPEN_TOTAL),
+      rateLimitExceededTotal: sum(RATE_LIMIT_EXCEEDED_TOTAL),
+    };
   }
 
   private normalizePath(path: string): string {

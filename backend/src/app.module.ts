@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule } from './config/config.module';
 import { PostgresModule } from './database/postgres/postgres.module';
@@ -6,6 +8,7 @@ import { MongoModule } from './database/mongo/mongo.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { RequestContextModule } from './common/request-context/request-context.module';
+import { SensitiveEndpointsRateLimitGuard } from './common/rate-limit/sensitive-endpoints-rate-limit.guard';
 import { CircuitBreakerModule } from './common/circuit-breaker/circuit-breaker.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -19,10 +22,12 @@ import { LedgerModule } from './ledger/ledger.module';
 import { DomainEventsModule } from './domain-events/domain-events.module';
 import { AuditComplianceModule } from './audit-compliance/audit-compliance.module';
 import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
+import { DiagnosticsModule } from './diagnostics/diagnostics.module';
 
 @Module({
   imports: [
     ConfigModule,
+    ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     DomainEventsModule,
     RequestContextModule,
@@ -42,6 +47,13 @@ import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
     LedgerModule,
     AuditComplianceModule,
     FraudDetectionModule,
+    DiagnosticsModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: SensitiveEndpointsRateLimitGuard,
+    },
   ],
 })
 export class AppModule {}

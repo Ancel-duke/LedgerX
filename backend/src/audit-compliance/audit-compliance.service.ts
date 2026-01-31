@@ -8,9 +8,11 @@ import {
   INVOICE_OVERDUE,
   PASSWORD_RESET_REQUESTED,
   PASSWORD_RESET_COMPLETED,
+  DIAGNOSTICS_REMEDIATION_EXECUTED,
 } from '../domain-events/events';
 
 const AUTH_AUDIT_ORG_ID = 'auth';
+const DIAGNOSTICS_AUDIT_ORG_ID = 'diagnostics';
 
 /**
  * Audit & Compliance: consumes domain events and writes to audit store only.
@@ -65,6 +67,19 @@ export class AuditComplianceService {
   @OnEvent(PASSWORD_RESET_COMPLETED)
   async handlePasswordResetCompleted(payload: { userId: string }) {
     await this.record(PASSWORD_RESET_COMPLETED, AUTH_AUDIT_ORG_ID, payload);
+  }
+
+  @OnEvent(DIAGNOSTICS_REMEDIATION_EXECUTED)
+  async handleDiagnosticsRemediationExecuted(payload: {
+    action: string;
+    params: Record<string, unknown>;
+    actor: string;
+    approved: boolean;
+    result: string;
+    error?: string;
+    at: string;
+  }) {
+    await this.record(DIAGNOSTICS_REMEDIATION_EXECUTED, DIAGNOSTICS_AUDIT_ORG_ID, payload);
   }
 
   private async record(
