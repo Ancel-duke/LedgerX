@@ -74,8 +74,12 @@ export default function AnalyticsPage() {
     );
   }
 
-  // The service already unwraps response.data.data, so statsResponse is the direct stats object
-  const stats = statsResponse || {};
+  const stats = statsResponse ?? {
+    totalRevenue: 0,
+    totalInvoices: 0,
+    pendingInvoices: 0,
+    overdueInvoices: 0,
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
