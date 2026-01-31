@@ -11,8 +11,20 @@ export default function AuditPage() {
   const [entityId, setEntityId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-
   const canAccess = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+
+  const entityHistoryQuery = useQuery({
+    queryKey: ['audit', 'entity', entityType, entityId],
+    queryFn: () => auditComplianceService.getEntityAuditHistory(entityType, entityId),
+    enabled: canAccess === true && Boolean(entityId.trim()),
+  });
+
+  const exportQuery = useQuery({
+    queryKey: ['audit', 'export', fromDate, toDate],
+    queryFn: () => auditComplianceService.getTimeRangeExport(fromDate, toDate),
+    enabled: canAccess === true && Boolean(fromDate && toDate),
+  });
+
   if (user && !canAccess) {
     return (
       <div className="max-w-6xl mx-auto">
@@ -24,18 +36,6 @@ export default function AuditPage() {
       </div>
     );
   }
-
-  const entityHistoryQuery = useQuery({
-    queryKey: ['audit', 'entity', entityType, entityId],
-    queryFn: () => auditComplianceService.getEntityAuditHistory(entityType, entityId),
-    enabled: Boolean(entityId.trim()),
-  });
-
-  const exportQuery = useQuery({
-    queryKey: ['audit', 'export', fromDate, toDate],
-    queryFn: () => auditComplianceService.getTimeRangeExport(fromDate, toDate),
-    enabled: Boolean(fromDate && toDate),
-  });
 
   return (
     <div className="max-w-6xl mx-auto">

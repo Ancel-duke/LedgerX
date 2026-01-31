@@ -102,16 +102,16 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Render provides PORT environment variable, fallback to config or 3000
-  const port = process.env.PORT || configService.get<number>('app.port') || 3000;
-  await app.listen(port);
+  // Render and other PaaS set PORT; bind to 0.0.0.0 so external traffic is accepted
+  const port = Number(process.env.PORT) || configService.get<number>('app.port') || 3000;
+  await app.listen(port, '0.0.0.0');
 
   process.stdout.write(
     JSON.stringify({
       timestamp: new Date().toISOString(),
       level: 'log',
       context: 'Bootstrap',
-      message: `Application is running on: http://localhost:${port}/${apiPrefix}`,
+      message: `Application is running on: http://0.0.0.0:${port}/${apiPrefix}`,
     }) + '\n',
   );
 }

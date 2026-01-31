@@ -2,10 +2,15 @@ import { apiClient } from './api-client';
 import { unwrapResponse } from '@/lib/api-response';
 import type { Payment, CreatePaymentDto, UpdatePaymentDto } from '@/types';
 
+export interface PaymentListResponse {
+  data: Payment[];
+  meta?: { page: number; limit: number; total: number; totalPages?: number };
+}
+
 class PaymentsService {
-  async getAll(params?: { page?: number; limit?: number; status?: string; invoiceId?: string }) {
+  async getAll(params?: { page?: number; limit?: number; status?: string; invoiceId?: string }): Promise<PaymentListResponse> {
     const response = await apiClient.get('/payments', { params });
-    return unwrapResponse(response.data);
+    return unwrapResponse<PaymentListResponse>(response.data) ?? { data: [] };
   }
 
   async getById(id: string): Promise<Payment> {

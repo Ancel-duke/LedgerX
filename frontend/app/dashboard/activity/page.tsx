@@ -36,7 +36,7 @@ export default function ActivityPage() {
     );
   }
 
-  const activities = data?.data || [];
+  const activities = data?.data ?? [];
 
   return (
     <div className="p-4 sm:p-6">

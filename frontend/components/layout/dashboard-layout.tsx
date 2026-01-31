@@ -222,9 +222,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             aria-hidden
           />
           <aside
-            className="fixed top-0 left-0 h-full w-72 max-w-[85vw] bg-white border-r border-neutral-200 z-50 lg:hidden shadow-xl overflow-y-auto"
+            role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
+            className="fixed top-0 left-0 h-full w-72 max-w-[85vw] bg-white border-r border-neutral-200 z-50 lg:hidden shadow-xl overflow-y-auto"
           >
             <div className="flex items-center justify-between px-4 py-4 border-b border-neutral-200">
               <span className="font-semibold text-neutral-900">Menu</span>

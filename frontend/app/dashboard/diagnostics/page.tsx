@@ -10,8 +10,52 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 export default function DiagnosticsPage() {
   const { user, organization } = useAuth();
   const queryClient = useQueryClient();
-
   const canAccess = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+
+  const healthQuery = useQuery({
+    queryKey: ['health'],
+    queryFn: getHealth,
+    enabled: canAccess ?? false,
+  });
+  const readyQuery = useQuery({
+    queryKey: ['health', 'ready'],
+    queryFn: getReadiness,
+    enabled: canAccess ?? false,
+  });
+  const aggregatesQuery = useQuery({
+    queryKey: ['diagnostics', 'aggregates'],
+    queryFn: () => diagnosticsService.getAggregates(),
+    enabled: canAccess ?? false,
+  });
+  const reportQuery = useQuery({
+    queryKey: ['diagnostics', 'report'],
+    queryFn: () => diagnosticsService.getReport(),
+    enabled: canAccess ?? false,
+  });
+  const historyQuery = useQuery({
+    queryKey: ['diagnostics', 'report', 'history'],
+    queryFn: () => diagnosticsService.getReportHistory(20),
+    enabled: canAccess ?? false,
+  });
+  const jobsQuery = useQuery({
+    queryKey: ['diagnostics', 'jobs'],
+    queryFn: () => diagnosticsService.getJobs(),
+    enabled: canAccess ?? false,
+  });
+  const flagsQuery = useQuery({
+    queryKey: ['diagnostics', 'feature-flags'],
+    queryFn: () => diagnosticsService.getFeatureFlags(organization?.id),
+    enabled: canAccess ?? false,
+  });
+
+  const generateReport = useMutation({
+    mutationFn: () => diagnosticsService.generateReport(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['diagnostics', 'report'] });
+      queryClient.invalidateQueries({ queryKey: ['diagnostics', 'report', 'history'] });
+    },
+  });
+
   if (user && !canAccess) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,43 +67,6 @@ export default function DiagnosticsPage() {
       </div>
     );
   }
-
-  const healthQuery = useQuery({
-    queryKey: ['health'],
-    queryFn: getHealth,
-  });
-  const readyQuery = useQuery({
-    queryKey: ['health', 'ready'],
-    queryFn: getReadiness,
-  });
-  const aggregatesQuery = useQuery({
-    queryKey: ['diagnostics', 'aggregates'],
-    queryFn: () => diagnosticsService.getAggregates(),
-  });
-  const reportQuery = useQuery({
-    queryKey: ['diagnostics', 'report'],
-    queryFn: () => diagnosticsService.getReport(),
-  });
-  const historyQuery = useQuery({
-    queryKey: ['diagnostics', 'report', 'history'],
-    queryFn: () => diagnosticsService.getReportHistory(20),
-  });
-  const jobsQuery = useQuery({
-    queryKey: ['diagnostics', 'jobs'],
-    queryFn: () => diagnosticsService.getJobs(),
-  });
-  const flagsQuery = useQuery({
-    queryKey: ['diagnostics', 'feature-flags'],
-    queryFn: () => diagnosticsService.getFeatureFlags(organization?.id),
-  });
-
-  const generateReport = useMutation({
-    mutationFn: () => diagnosticsService.generateReport(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['diagnostics', 'report'] });
-      queryClient.invalidateQueries({ queryKey: ['diagnostics', 'report', 'history'] });
-    },
-  });
 
   const loading = healthQuery.isLoading || readyQuery.isLoading;
   const livenessOk = healthQuery.data?.status === 'ok';

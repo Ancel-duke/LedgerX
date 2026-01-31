@@ -49,8 +49,9 @@ Since Render doesn't provide MongoDB, use MongoDB Atlas:
 - **Branch**: `main`
 - **Root Directory**: `backend` (important!)
 - **Runtime**: `Node`
-- **Build Command**: `npm install && npm run build`
+- **Build Command**: `NODE_ENV=development npm install && npx prisma generate && npm run build`
 - **Start Command**: `npm run start:prod`
+- **Health Check Path**: `/health` (not `/api/health` — health routes are excluded from the API prefix)
 
 ### Environment Variables
 
@@ -75,25 +76,23 @@ PORT=10000
 **Important Notes:**
 - Use the **Internal Database URL** for PostgreSQL (not the external one)
 - Generate strong JWT secrets (you can use: `openssl rand -base64 32`)
-- Render automatically sets `PORT` environment variable, but we'll use 10000 as fallback
+- Render automatically sets the `PORT` environment variable; the backend binds to `0.0.0.0:PORT` so traffic is accepted
 
 ### Advanced Settings (Optional)
 
 - **Auto-Deploy**: `Yes` (deploys on every push to main branch)
-- **Health Check Path**: `/api/health` (if you add a health endpoint)
+- **Health Check Path**: `/health` (backend exposes `/health` and `/health/ready`; use `/health` for Render)
 
 4. Click **"Create Web Service"**
 
-## Step 4: Update Backend Code for Render
+## Step 4: Backend Optimized for Render
 
-### Update `backend/src/main.ts`
+The backend is already configured for Render:
 
-Make sure your main.ts uses the PORT from environment:
-
-```typescript
-const port = process.env.PORT || 3000;
-await app.listen(port);
-```
+- **PORT**: Uses `process.env.PORT` (set by Render); falls back to config or 3000.
+- **Bind address**: Listens on `0.0.0.0` so external traffic is accepted (required on Render).
+- **Graceful shutdown**: `app.enableShutdownHooks()` handles SIGTERM from Render for clean shutdowns.
+- **Health**: `/health` (liveness) and `/health/ready` (readiness with DB check) are **not** under the API prefix, so use **Health Check Path: `/health`** in the Render dashboard (not `/api/health`).
 
 ### Create `backend/render.yaml` (Optional)
 
@@ -180,7 +179,7 @@ app.enableCors({
 1. Check the **"Logs"** tab in Render dashboard
 2. Look for: `Nest application successfully started`
 3. Test the API: `https://your-service-name.onrender.com/api`
-4. Test health endpoint (if added): `https://your-service-name.onrender.com/api/health`
+4. Test health endpoint: `https://your-service-name.onrender.com/health` (returns `{ status: 'ok', timestamp }`)
 
 ## Step 8: Update Frontend Environment
 
@@ -221,7 +220,7 @@ NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com/api
 
 - Render free tier has cold starts (15-30 seconds)
 - Upgrade to paid plan for faster response times
-- Consider adding a health check endpoint
+- The `/health` health check helps Render mark the service as ready once the app is listening
 
 ## Render Free Tier Limitations
 
@@ -240,19 +239,33 @@ NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com/api
 6. **Set up CI/CD** with GitHub Actions
 7. **Add health check endpoint** for monitoring
 
-## Health Check Endpoint (Optional)
+## Health Check Endpoint
 
-Add to `backend/src/app.module.ts` or create a health controller:
+The backend already exposes health endpoints (no auth, no API prefix):
 
-```typescript
-@Get('health')
-health() {
-  return {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-  };
-}
+- **GET `/health`** — Liveness (process is running). Use this as **Health Check Path** in Render.
+- **GET `/health/ready`** — Readiness (DB connectivity). Returns `{ status: 'ok' | 'degraded', db?, timestamp }`.
+
+## Backend Optimizations for Render
+
+The backend is already tuned for Render to avoid common deployment errors:
+
+| Optimization | Purpose |
+|-------------|---------|
+| **Bind to `0.0.0.0`** | Accepts traffic from Render's proxy; default `localhost` would reject external requests. |
+| **PORT from env** | Uses `process.env.PORT` (set by Render); no hardcoded port. |
+| **Graceful shutdown** | `app.enableShutdownHooks()` handles SIGTERM so connections drain before exit. |
+| **Health at `/health`** | Liveness endpoint is *not* under `/api`, so set **Health Check Path** to `/health` in Render. |
+| **Uncaught / unhandled handlers** | Log and exit(1) so Render restarts the service on fatal errors. |
+| **Build command** | `NODE_ENV=development npm install` ensures devDependencies (Nest CLI, TypeScript) are installed for build. |
+
+If you run migrations at build time (DATABASE_URL available in build), add to build command:
+
+```bash
+NODE_ENV=development npm install && npx prisma generate && npx prisma migrate deploy && npm run build
 ```
+
+Otherwise run `npx prisma migrate deploy` once in the Render Shell after first deploy.
 
 ## Next Steps
 

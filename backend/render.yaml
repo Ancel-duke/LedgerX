@@ -1,11 +1,16 @@
+# Backend optimized for Render: 0.0.0.0 binding, PORT from env, health at /health.
+# Optional: add "npx prisma migrate deploy" before "npm run build" if DATABASE_URL is available at build.
 services:
   - type: web
     name: ledgerx-backend
     env: node
     plan: free
     rootDir: backend
+    # Install devDependencies for build (NODE_ENV=development); then generate Prisma client and build
     buildCommand: NODE_ENV=development npm install && npx prisma generate && npm run build
     startCommand: npm run start:prod
+    # Health check path: /health (no /api prefix). Render uses this to mark service healthy.
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -23,8 +28,7 @@ services:
         value: 1d
       - key: JWT_REFRESH_EXPIRATION
         value: 7d
-      - key: PORT
-        value: 10000
+    # PORT is set by Render automatically; no need to set it here unless overriding
 
 databases:
   - name: ledgerx-db

@@ -1,5 +1,11 @@
 import { apiClient } from './api-client';
 import { unwrapResponse } from '@/lib/api-response';
+import type { ActivityLog } from '@/types';
+
+export interface ActivityLogListResponse {
+  data: ActivityLog[];
+  meta?: { page: number; limit: number; total: number; totalPages: number };
+}
 
 class ActivityLogService {
   async getAll(params?: {
@@ -7,9 +13,9 @@ class ActivityLogService {
     limit?: number;
     entityType?: string;
     userId?: string;
-  }) {
+  }): Promise<ActivityLogListResponse> {
     const response = await apiClient.get('/activity-log', { params });
-    return unwrapResponse(response.data);
+    return unwrapResponse<ActivityLogListResponse>(response.data) ?? { data: [] };
   }
 
   async getByEntity(entityType: string, entityId: string, params?: { page?: number; limit?: number }) {
