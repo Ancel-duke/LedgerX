@@ -28,6 +28,8 @@ export interface DiagnosticReport {
   aggregates: DiagnosticsAggregates;
   findings: DiagnosticFinding[];
   summary: string;
+  /** Optional LLM-generated human-readable advisory (feature-flag; advisory only). */
+  aiSummary?: string | null;
 }
 
 /** Allowed remediation actions (guarded). Disallowed: payment retries, ledger writes, refunds. */

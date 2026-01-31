@@ -61,9 +61,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-neutral-700 mb-2">
-              Password
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-neutral-700">
+                Password
+              </label>
+              <a href="/auth/forgot-password" className="text-sm text-neutral-600 hover:text-neutral-900 focus:outline-none focus:underline">
+                Forgot password?
+              </a>
+            </div>
             <PasswordInput
               id="password"
               value={password}
@@ -73,7 +78,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full min-h-[44px]" disabled={isLoading}>
             {isLoading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>

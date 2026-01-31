@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { CircuitBreakerService } from '../common/circuit-breaker/circuit-breaker.service';
 import { FeatureFlagsService } from './feature-flags.service';
+import { RestartService } from './restart.service';
 import { DomainEventBus } from '../domain-events/domain-event-bus.service';
 import { DIAGNOSTICS_REMEDIATION_EXECUTED } from '../domain-events/events';
 import {
@@ -9,17 +10,17 @@ import {
   RemediationAuditPayload,
 } from './diagnostics.types';
 
-const DIAGNOSTICS_AUDIT_ORG_ID = 'diagnostics';
-
 /**
  * Safe remediations only. All actions require explicit approval and are fully audited.
  * Disallowed: payment retries, ledger writes, refunds.
+ * Restart is platform-aware (deploy hook or process.exit) and blocked during in-flight financial transactions.
  */
 @Injectable()
 export class RemediationService {
   constructor(
     private readonly circuitBreakerService: CircuitBreakerService,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly restartService: RestartService,
     private readonly domainEventBus: DomainEventBus,
   ) {}
 
@@ -71,13 +72,14 @@ export class RemediationService {
           if (!key) {
             throw new BadRequestException('params.key required for TOGGLE_FEATURE_FLAG');
           }
-          this.featureFlagsService.set(key, value);
+          const scope = (params.scope as 'GLOBAL' | 'ORG' | 'ENVIRONMENT') ?? 'GLOBAL';
+          const scopeId = params.scopeId ?? undefined;
+          await this.featureFlagsService.set(key, value, scope, scopeId);
           result = { success: true, message: `Feature flag ${key} = ${value}` };
           break;
         }
         case AllowedRemediationAction.RESTART_PROCESS: {
-          result = { success: true, message: 'Process will restart shortly' };
-          setTimeout(() => process.exit(0), 500);
+          result = await this.restartService.requestRestart();
           break;
         }
         default:

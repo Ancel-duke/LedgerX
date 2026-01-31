@@ -16,6 +16,7 @@ import { InvoicesTransactionService } from '../invoices/invoices-transaction.ser
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { FraudRiskService } from '../fraud-detection/fraud-risk.service';
+import { InFlightFinancialService } from '../common/in-flight-financial/in-flight-financial.service';
 
 @Injectable()
 export class PaymentsService {
@@ -27,9 +28,19 @@ export class PaymentsService {
     private activityLogService: ActivityLogService,
     private ledgerService: LedgerService,
     private fraudRiskService: FraudRiskService,
+    private inFlightFinancial: InFlightFinancialService,
   ) {}
 
   async create(organizationId: string, userId: string, createPaymentDto: CreatePaymentDto) {
+    const release = this.inFlightFinancial.start();
+    try {
+      return await this.createInner(organizationId, userId, createPaymentDto);
+    } finally {
+      release();
+    }
+  }
+
+  private async createInner(organizationId: string, userId: string, createPaymentDto: CreatePaymentDto) {
     const orgBlock = await this.fraudRiskService.shouldBlockOrganization(organizationId);
     if (orgBlock.block) {
       this.logger.warn('Payment creation blocked', {

@@ -445,3 +445,44 @@ model FraudSignal {
   @@index([entityType, entityId])
   @@map("fraud_signals")
 }
+
+// Org-level fraud aggregation (read-only rollup for dashboards; no blocking)
+model FraudOrgAggregate {
+  id             String   @id @default(uuid())
+  organizationId String   @unique
+  riskScore      Int      // 0-100 (e.g. max or avg of recent signals)
+  flaggedCount   Int      @default(0)
+  aggregatedAt   DateTime @default(now())
+
+  @@index([aggregatedAt])
+  @@map("fraud_org_aggregates")
+}
+
+// Diagnostic report history: persisted for "last report" and "compare now vs previous"
+model DiagnosticReportHistory {
+  id         String   @id @default(uuid())
+  reportAt   DateTime @default(now())
+  aggregates Json     // snapshot of metrics + circuits
+  findings   Json     // DiagnosticFinding[]
+  summary    String
+  aiSummary  String?  // optional LLM-generated human-readable summary (advisory only)
+
+  @@index([reportAt])
+  @@map("diagnostic_report_history")
+}
+
+// Feature flags: global, per-org, per-environment (non-financial toggles only)
+model FeatureFlag {
+  id        String   @id @default(uuid())
+  key       String   // e.g. diagnostics_verbose
+  value     Boolean  @default(false)
+  scope     String   // GLOBAL | ORG | ENVIRONMENT
+  scopeId   String?  // org id when scope=ORG; env name when scope=ENVIRONMENT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, scope, scopeId])
+  @@index([key])
+  @@index([scope, scopeId])
+  @@map("feature_flags")
+}

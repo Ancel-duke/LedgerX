@@ -230,4 +230,54 @@ export class FraudRiskService {
     const env = process.env.FRAUD_RISK_BLOCK_THRESHOLD;
     return env ? parseInt(env, 10) : DEFAULT_BLOCK_THRESHOLD;
   }
+
+  /**
+   * Aggregate fraud signals for an organization (for scheduled rollup).
+   * Returns org-level risk score (max of recent signals) and count of flagged signals.
+   * Read-only from payments/ledger; writes only to FraudOrgAggregate via caller.
+   */
+  async aggregateOrgFraud(
+    organizationId: string,
+    options?: { riskWindowDays?: number },
+  ): Promise<{ riskScore: number; flaggedCount: number }> {
+    const riskWindowDays = options?.riskWindowDays ?? 30;
+    const since = new Date(Date.now() - riskWindowDays * 24 * 60 * 60 * 1000);
+
+    const [maxRisk, flaggedCount] = await Promise.all([
+      this.prisma.fraudSignal.aggregate({
+        where: {
+          organizationId,
+          createdAt: { gte: since },
+        },
+        _max: { riskScore: true },
+      }),
+      this.prisma.fraudSignal.count({
+        where: {
+          organizationId,
+          isFlagged: true,
+        },
+      }),
+    ]);
+
+    return {
+      riskScore: Math.min(100, maxRisk._max?.riskScore ?? 0),
+      flaggedCount,
+    };
+  }
+
+  /** Returns distinct organization IDs that have at least one fraud signal (for aggregation job). */
+  async getOrganizationIdsWithSignals(): Promise<string[]> {
+    const rows = await this.prisma.fraudSignal.findMany({
+      select: { organizationId: true },
+      distinct: ['organizationId'],
+    });
+    return rows.map((r) => r.organizationId);
+  }
+
+  /** Get persisted org-level aggregate (from scheduled job). Returns null if not yet aggregated. */
+  async getOrgAggregate(organizationId: string) {
+    return this.prisma.fraudOrgAggregate.findUnique({
+      where: { organizationId },
+    });
+  }
 }

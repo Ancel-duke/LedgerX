@@ -1,4 +1,5 @@
 import { apiClient } from './api-client';
+import { unwrapResponse } from '@/lib/api-response';
 import type { User } from '@/types';
 
 export interface CreateUserDto {
@@ -22,22 +23,22 @@ export interface UpdateUserDto {
 class UsersService {
   async getAll(params?: { page?: number; limit?: number }) {
     const response = await apiClient.get('/users', { params });
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async getById(id: string): Promise<User> {
     const response = await apiClient.get(`/users/${id}`);
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async create(data: CreateUserDto): Promise<User> {
     const response = await apiClient.post('/users', data);
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async update(id: string, data: UpdateUserDto): Promise<User> {
     const response = await apiClient.patch(`/users/${id}`, data);
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async delete(id: string): Promise<void> {

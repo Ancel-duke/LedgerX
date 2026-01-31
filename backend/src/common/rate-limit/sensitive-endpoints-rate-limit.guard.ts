@@ -4,16 +4,14 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  Inject,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { MetricsService } from '../../metrics/metrics.service';
+import { IRateLimitStore } from './rate-limit-store.interface';
+import { RATE_LIMIT_STORE } from './rate-limit.module';
 
 const INTERNAL_SERVICE_HEADER = 'x-internal-service';
-
-interface Window {
-  count: number;
-  resetAt: number;
-}
 
 /** Per-path limits. Order matters: more specific (webhooks) before generic (payments). */
 const PATH_LIMITS: Array<{
@@ -32,13 +30,12 @@ const PATH_LIMITS: Array<{
 
 @Injectable()
 export class SensitiveEndpointsRateLimitGuard implements CanActivate {
-  private readonly store = new Map<string, Window>();
-
   constructor(
     private readonly metricsService: MetricsService,
+    @Inject(RATE_LIMIT_STORE) private readonly store: IRateLimitStore,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const path = (req.path || req.url || '').split('?')[0];
 
@@ -51,12 +48,12 @@ export class SensitiveEndpointsRateLimitGuard implements CanActivate {
       return true;
     }
 
-    const now = Date.now();
     const ip = this.getClientIp(req);
 
     if (config.ipLimit > 0) {
       const ipKey = `ip:${config.name}:${ip}`;
-      if (!this.checkAndIncrement(ipKey, config.ipLimit, config.ipTtlMs, now)) {
+      const allowed = await this.store.checkAndIncrement(ipKey, config.ipLimit, config.ipTtlMs);
+      if (!allowed) {
         this.metricsService.recordRateLimitExceeded('ip');
         throw new HttpException(
           { statusCode: HttpStatus.TOO_MANY_REQUESTS, message: 'Too many requests' },
@@ -68,7 +65,8 @@ export class SensitiveEndpointsRateLimitGuard implements CanActivate {
     const orgId = (req as Request & { user?: { organizationId?: string } }).user?.organizationId;
     if (config.orgLimit > 0 && orgId) {
       const orgKey = `org:${config.name}:${orgId}`;
-      if (!this.checkAndIncrement(orgKey, config.orgLimit, config.orgTtlMs, now)) {
+      const allowed = await this.store.checkAndIncrement(orgKey, config.orgLimit, config.orgTtlMs);
+      if (!allowed) {
         this.metricsService.recordRateLimitExceeded('org');
         throw new HttpException(
           { statusCode: HttpStatus.TOO_MANY_REQUESTS, message: 'Too many requests' },
@@ -95,13 +93,4 @@ export class SensitiveEndpointsRateLimitGuard implements CanActivate {
     return req.socket?.remoteAddress ?? req.ip ?? 'unknown';
   }
 
-  private checkAndIncrement(key: string, limit: number, ttlMs: number, now: number): boolean {
-    let w = this.store.get(key);
-    if (!w || w.resetAt <= now) {
-      w = { count: 0, resetAt: now + ttlMs };
-      this.store.set(key, w);
-    }
-    w.count++;
-    return w.count <= limit;
-  }
 }

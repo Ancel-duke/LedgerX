@@ -1,10 +1,17 @@
 import { apiClient } from './api-client';
-import type { User, LoginResponse, RegisterResponse } from '@/types';
+import { unwrapResponse } from '@/lib/api-response';
+import type { User, Organization, LoginResponse, RegisterResponse } from '@/types';
+
+export interface MeResponse {
+  user: User;
+  organization: Organization;
+  organizations: Array<{ id: string; name: string; slug: string }>;
+}
 
 class AuthService {
   async login(email: string, password: string): Promise<LoginResponse> {
     const response = await apiClient.post('/auth/login', { email, password });
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async register(data: {
@@ -15,19 +22,34 @@ class AuthService {
     organizationName: string;
   }): Promise<RegisterResponse> {
     const response = await apiClient.post('/auth/register', data);
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken?: string }> {
     const response = await apiClient.post('/auth/refresh', { refreshToken });
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
-  async getCurrentUser(token?: string): Promise<User> {
-    // Since backend doesn't have /auth/me, we'll decode the token or use a different approach
-    // For now, we'll return null and let the auth provider handle it
-    // In production, you'd decode the JWT token or add a /auth/me endpoint
-    throw new Error('getCurrentUser not implemented - decode JWT token instead');
+  async getMe(): Promise<MeResponse> {
+    const response = await apiClient.get('/auth/me');
+    return unwrapResponse(response.data);
+  }
+
+  async switchOrganization(organizationId: string): Promise<{ accessToken: string; refreshToken: string }> {
+    const response = await apiClient.post('/auth/switch-organization', { organizationId });
+    return unwrapResponse(response.data);
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const response = await apiClient.post('/auth/forgot-password', { email: email.trim().toLowerCase() });
+    const body = unwrapResponse<{ message?: string } | undefined>(response.data);
+    return body && typeof body === 'object' && 'message' in body ? { message: (body as { message: string }).message } : { message: 'If an account exists, a reset link has been sent.' };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const response = await apiClient.post('/auth/reset-password', { token, newPassword });
+    const body = unwrapResponse<{ message?: string } | undefined>(response.data);
+    return body && typeof body === 'object' && 'message' in body ? { message: (body as { message: string }).message } : { message: 'Password has been reset.' };
   }
 }
 

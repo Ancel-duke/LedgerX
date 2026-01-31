@@ -312,6 +312,36 @@ cd frontend
 npm run lint
 ```
 
+### E2E Tests (Backend)
+
+E2E tests use a **test database**. Point `DATABASE_URL` to a dedicated test DB (do not use production).
+
+**Required E2E environment variables:**
+
+- **`DATABASE_URL`** – PostgreSQL connection string for the **test** database (e.g. `postgresql://user:pass@localhost:5432/ledgerx_test`).
+- **`STRIPE_WEBHOOK_SECRET`** – (optional) Used by webhook idempotency E2E; use a test value (e.g. `whsec_test_e2e`) if you run those tests.
+
+**How to run E2E locally:**
+
+1. Create a test database and set `DATABASE_URL` in `backend/.env` (or `backend/.env.test`) to that database.
+2. From the `backend` directory:
+   - **Full run (reset DB then E2E):**  
+     `npm run test:e2e`  
+     This runs `npm run test:reset-db` (drops schema, reapplies migrations) then runs all E2E tests.
+   - **Reset DB only:**  
+     `npm run test:reset-db`  
+     Drops the test DB schema and runs Prisma migrations.
+   - **E2E only (no reset):**  
+     `npm run test:e2e:only`  
+     Runs E2E tests without resetting the DB (useful after a manual reset or for debugging).
+
+**Smoke E2E coverage:**
+
+- Health endpoint (`GET /health`)
+- Auth: register and login
+- Create client, invoice, and payment via API (internal; no Stripe SDK dependency)
+- Optional: webhook idempotency (uses Stripe test header when `STRIPE_WEBHOOK_SECRET` is set)
+
 ### Database Management
 
 ```bash

@@ -13,6 +13,7 @@ import { LEDGER_TRANSACTION_POSTED } from '../domain-events/events';
 import { createHash } from 'crypto';
 import { PaginationUtil, PaginationParams } from '../common/utils/pagination.util';
 import { Prisma } from '@prisma/client';
+import { InFlightFinancialService } from '../common/in-flight-financial/in-flight-financial.service';
 
 /** Ledger Core: append-only accounting truth layer. No update/delete on ledger tables. */
 @Injectable()
@@ -20,6 +21,7 @@ export class LedgerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly domainEventBus: DomainEventBus,
+    private readonly inFlightFinancial: InFlightFinancialService,
   ) {}
 
   /**
@@ -27,6 +29,18 @@ export class LedgerService {
    * Emits LedgerTransactionPostedEvent on success.
    */
   async postTransaction(
+    organizationId: string,
+    dto: PostTransactionDto,
+  ): Promise<{ id: string; createdAt: Date }> {
+    const release = this.inFlightFinancial.start();
+    try {
+      return await this.postTransactionInner(organizationId, dto);
+    } finally {
+      release();
+    }
+  }
+
+  private async postTransactionInner(
     organizationId: string,
     dto: PostTransactionDto,
   ): Promise<{ id: string; createdAt: Date }> {

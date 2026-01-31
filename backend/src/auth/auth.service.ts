@@ -12,6 +12,7 @@ import { PrismaService } from '../database/postgres/prisma.service';
 import { UsersService } from '../users/users.service';
 import { LedgerBootstrapService } from '../ledger/ledger-bootstrap.service';
 import { DomainEventBus } from '../domain-events/domain-event-bus.service';
+import { SmtpEmailService } from '../email/smtp-email.service';
 import {
   PASSWORD_RESET_REQUESTED,
   PASSWORD_RESET_COMPLETED,
@@ -33,6 +34,7 @@ export class AuthService {
     private configService: ConfigService,
     private ledgerBootstrapService: LedgerBootstrapService,
     private domainEventBus: DomainEventBus,
+    private emailService: SmtpEmailService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -209,8 +211,11 @@ export class AuthService {
 
       this.domainEventBus.publish(PASSWORD_RESET_REQUESTED, { userId: user.id });
 
-      // In a real app you would send rawToken via email here (or via a queue).
-      // We do NOT log rawToken. The event payload has userId only (no email).
+      if (this.emailService.isConfigured()) {
+        const baseUrl = (this.configService.get<string>('email.resetBaseUrl') ?? '').replace(/\/$/, '');
+        const resetLink = `${baseUrl}/auth/reset-password?token=${rawToken}`;
+        await this.emailService.sendPasswordResetLink(user.email, resetLink);
+      }
     }
 
     return { message: 'If an account exists, you will receive reset instructions.' };
@@ -258,6 +263,88 @@ export class AuthService {
     });
 
     return { message: 'Password has been reset. You can sign in with your new password.' };
+  }
+
+  /**
+   * Current user + organization (for /auth/me). Returns user, current org, and list of orgs for switcher.
+   */
+  async getMe(userId: string, organizationId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, isActive: true, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        userOrganizations: {
+          where: { isActive: true, deletedAt: null },
+          include: {
+            organization: { select: { id: true, name: true, slug: true, isActive: true } },
+            role: { select: { name: true } },
+          },
+        },
+      },
+    });
+    if (!user || user.userOrganizations.length === 0) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+    const currentUo = user.userOrganizations.find((uo) => uo.organizationId === organizationId)
+      ?? user.userOrganizations[0];
+    if (!currentUo.organization.isActive) {
+      throw new UnauthorizedException('Current organization is inactive');
+    }
+    const organizations = user.userOrganizations.map((uo) => ({
+      id: uo.organization.id,
+      name: uo.organization.name,
+      slug: uo.organization.slug,
+    }));
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: currentUo.role.name,
+        organizationId: currentUo.organizationId,
+      },
+      organization: {
+        id: currentUo.organization.id,
+        name: currentUo.organization.name,
+        slug: currentUo.organization.slug,
+      },
+      organizations,
+    };
+  }
+
+  /**
+   * Switch current organization (returns new tokens with new organizationId).
+   * User must belong to the target organization.
+   */
+  async switchOrganization(userId: string, organizationId: string) {
+    const userOrg = await this.prisma.userOrganization.findFirst({
+      where: {
+        userId,
+        organizationId,
+        isActive: true,
+        deletedAt: null,
+      },
+      include: {
+        user: { select: { id: true, email: true, tokenVersion: true } },
+        organization: { select: { isActive: true } },
+        role: { select: { name: true } },
+      },
+    });
+    if (!userOrg || !userOrg.user || !userOrg.organization.isActive) {
+      throw new UnauthorizedException('User does not have access to this organization');
+    }
+    const tokens = await this.generateTokens(
+      userOrg.user.id,
+      userOrg.user.email,
+      userOrg.role.name,
+      organizationId,
+      userOrg.user.tokenVersion,
+    );
+    return { ...tokens };
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {

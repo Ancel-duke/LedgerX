@@ -8,6 +8,9 @@ import { MongoModule } from './database/mongo/mongo.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { RequestContextModule } from './common/request-context/request-context.module';
+import { InFlightFinancialModule } from './common/in-flight-financial/in-flight-financial.module';
+import { ScheduledJobsModule } from './common/scheduled-jobs/scheduled-jobs.module';
+import { RateLimitModule } from './common/rate-limit/rate-limit.module';
 import { SensitiveEndpointsRateLimitGuard } from './common/rate-limit/sensitive-endpoints-rate-limit.guard';
 import { CircuitBreakerModule } from './common/circuit-breaker/circuit-breaker.module';
 import { AuthModule } from './auth/auth.module';
@@ -31,6 +34,9 @@ import { DiagnosticsModule } from './diagnostics/diagnostics.module';
     EventEmitterModule.forRoot(),
     DomainEventsModule,
     RequestContextModule,
+    InFlightFinancialModule,
+    ScheduledJobsModule,
+    RateLimitModule,
     HealthModule,
     MetricsModule,
     CircuitBreakerModule,

@@ -57,6 +57,13 @@ export class FraudDetectionController {
     return this.fraudRiskService.shouldBlockPayment(organizationId, paymentId);
   }
 
+  /** Get persisted org-level fraud aggregate (from scheduled job). */
+  @Get('org-aggregate')
+  async getOrgAggregate(@CurrentOrg() organizationId: string) {
+    const aggregate = await this.fraudRiskService.getOrgAggregate(organizationId);
+    return aggregate ?? { riskScore: 0, flaggedCount: 0, aggregatedAt: null };
+  }
+
   /** Policy check at org level: block if too many flagged in window. */
   @Get('policy/org-block-check')
   async orgBlockCheck(

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
+import { unwrapResponse } from '@/lib/api-response';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -48,14 +49,15 @@ class ApiClient {
                 refreshToken,
               });
 
-              const { accessToken } = response.data.data;
-              Cookies.set('accessToken', accessToken, { expires: 1 });
-
-              if (originalRequest.headers) {
-                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+              const payload = unwrapResponse<{ accessToken?: string }>(response.data);
+              const accessToken = payload?.accessToken;
+              if (accessToken) {
+                Cookies.set('accessToken', accessToken, { expires: 1 });
+                if (originalRequest.headers) {
+                  originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                }
+                return this.client(originalRequest);
               }
-
-              return this.client(originalRequest);
             }
           } catch (refreshError) {
             Cookies.remove('accessToken');

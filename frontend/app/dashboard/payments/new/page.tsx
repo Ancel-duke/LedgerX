@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { paymentsService } from '@/services/api/payments.service';
 import { invoicesService } from '@/services/api/invoices.service';
+import { fraudDetectionService } from '@/services/api/fraud-detection.service';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,12 @@ export default function NewPaymentPage() {
     queryKey: ['invoices'],
     queryFn: () => invoicesService.getAll({ page: 1, limit: 100 }),
   });
+
+  const { data: orgBlock } = useQuery({
+    queryKey: ['fraud', 'org-block-check'],
+    queryFn: () => fraudDetectionService.orgBlockCheck(),
+  });
+  const isBlocked = orgBlock?.block === true;
 
   const createMutation = useMutation({
     mutationFn: (data: any) => {
@@ -76,6 +83,20 @@ export default function NewPaymentPage() {
     const remaining = Number(invoice.total || 0) - totalPaid;
     return Math.max(0, remaining);
   };
+
+  if (isBlocked) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-red-800">
+          <h2 className="text-lg font-semibold mb-2">Account temporarily restricted</h2>
+          <p className="text-sm mb-4">
+            Account temporarily restricted due to risk policy. Payments cannot be submitted at this time.
+          </p>
+          <Button onClick={() => router.push('/dashboard/payments')}>Back to Payments</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto">

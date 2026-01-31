@@ -15,6 +15,7 @@ import { DomainEventBus } from '../../domain-events/domain-event-bus.service';
 import { PAYMENT_COMPLETED } from '../../domain-events/events';
 import { MetricsService } from '../../metrics/metrics.service';
 import { FraudRiskService } from '../../fraud-detection/fraud-risk.service';
+import { InFlightFinancialService } from '../../common/in-flight-financial/in-flight-financial.service';
 import { IWebhookAdapter } from './interfaces/webhook-adapter.interface';
 import { ParsedWebhookPayload } from './types/parsed-webhook-payload';
 import { LedgerEntryDirection } from '@prisma/client';
@@ -47,6 +48,7 @@ export class PaymentOrchestratorService {
     private readonly domainEventBus: DomainEventBus,
     private readonly metricsService: MetricsService,
     private readonly fraudRiskService: FraudRiskService,
+    private readonly inFlightFinancial: InFlightFinancialService,
     mpesaAdapter: MpesaAdapter,
     stripeAdapter: StripeAdapter,
   ) {
@@ -99,6 +101,18 @@ export class PaymentOrchestratorService {
    * On success: existing Payments flow, PaymentCompleted event, Ledger entries.
    */
   private async processPaymentIntent(
+    provider: PaymentProvider,
+    payload: ParsedWebhookPayload,
+  ): Promise<HandleWebhookResult> {
+    const release = this.inFlightFinancial.start();
+    try {
+      return await this.processPaymentIntentInner(provider, payload);
+    } finally {
+      release();
+    }
+  }
+
+  private async processPaymentIntentInner(
     provider: PaymentProvider,
     payload: ParsedWebhookPayload,
   ): Promise<HandleWebhookResult> {

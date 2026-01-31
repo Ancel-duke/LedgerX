@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PostgresModule } from '../database/postgres/postgres.module';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { ActivityLogController } from './activity-log.controller';
 import { ActivityLogService } from './activity-log.service';
 import { ActivityLog, ActivityLogSchema } from './schemas/activity-log.schema';
@@ -15,7 +16,7 @@ import { AuditComplianceRecordService } from './audit/audit-compliance-record.se
     PostgresModule,
   ],
   controllers: [ActivityLogController, AuditComplianceController],
-  providers: [ActivityLogService, AuditComplianceRecordService],
+  providers: [ActivityLogService, AuditComplianceRecordService, RolesGuard],
   exports: [ActivityLogService],
 })
 export class ActivityLogModule {}

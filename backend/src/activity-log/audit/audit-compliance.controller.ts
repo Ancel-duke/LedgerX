@@ -8,15 +8,18 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { OrganizationGuard } from '../../common/guards/organization.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles, Role } from '../../common/decorators/roles.decorator';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { AuditComplianceRecordService } from './audit-compliance-record.service';
 
 /**
- * Audit & Compliance: read-only endpoints. Append-only store; no update/delete APIs.
- * Extends Activity Log with domain-event audit trail (entity history, time-range export).
+ * Audit & Compliance: read-only endpoints. Restricted to admin/compliance roles.
+ * Append-only store; no update/delete APIs.
  */
 @Controller('audit-compliance')
-@UseGuards(JwtAuthGuard, OrganizationGuard)
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
+@Roles(Role.ADMIN, Role.MANAGER)
 export class AuditComplianceController {
   constructor(
     private readonly auditComplianceRecordService: AuditComplianceRecordService,

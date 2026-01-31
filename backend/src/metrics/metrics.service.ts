@@ -91,26 +91,48 @@ export class MetricsService {
     return this.register.metrics();
   }
 
-  /** Snapshot of counter values for diagnostics (read-only). */
+  /**
+   * Snapshot of counter values for diagnostics (read-only).
+   * Safely handles different prom-client JSON shapes and missing/nested values; never throws.
+   */
   async getDiagnosticsSnapshot(): Promise<{
     authFailuresTotal: number;
     paymentFailuresTotal: number;
     circuitOpenTotal: number;
     rateLimitExceededTotal: number;
   }> {
-    const metrics = await this.register.getMetricsAsJSON();
-    const sum = (name: string): number => {
-      const m = metrics.find((x: { name: string }) => x.name === name);
-      if (!m || !('values' in m)) return 0;
-      const values = (m as { values?: Array<{ value: number }> }).values;
-      return values?.reduce((s, v) => s + v.value, 0) ?? 0;
+    const safe: { authFailuresTotal: number; paymentFailuresTotal: number; circuitOpenTotal: number; rateLimitExceededTotal: number } = {
+      authFailuresTotal: 0,
+      paymentFailuresTotal: 0,
+      circuitOpenTotal: 0,
+      rateLimitExceededTotal: 0,
     };
-    return {
-      authFailuresTotal: sum(AUTH_FAILURES_TOTAL),
-      paymentFailuresTotal: sum(PAYMENT_FAILURES_TOTAL),
-      circuitOpenTotal: sum(CIRCUIT_OPEN_TOTAL),
-      rateLimitExceededTotal: sum(RATE_LIMIT_EXCEEDED_TOTAL),
-    };
+    try {
+      const raw = await this.register.getMetricsAsJSON();
+      const metrics = Array.isArray(raw) ? raw : [];
+      const sum = (name: string): number => {
+        const m = metrics.find((x: unknown) => typeof x === 'object' && x !== null && (x as { name?: string }).name === name);
+        if (!m || typeof m !== 'object') return 0;
+        const obj = m as Record<string, unknown>;
+        if (!('values' in obj)) return 0;
+        const values = obj.values;
+        if (!Array.isArray(values)) return 0;
+        return values.reduce((s: number, v: unknown) => {
+          if (typeof v === 'object' && v !== null && 'value' in (v as object)) {
+            const val = (v as { value: unknown }).value;
+            return s + (typeof val === 'number' ? val : 0);
+          }
+          return s;
+        }, 0);
+      };
+      safe.authFailuresTotal = sum(AUTH_FAILURES_TOTAL);
+      safe.paymentFailuresTotal = sum(PAYMENT_FAILURES_TOTAL);
+      safe.circuitOpenTotal = sum(CIRCUIT_OPEN_TOTAL);
+      safe.rateLimitExceededTotal = sum(RATE_LIMIT_EXCEEDED_TOTAL);
+    } catch {
+      // Diagnostics must not crash the process; return zeros on any error
+    }
+    return safe;
   }
 
   private normalizePath(path: string): string {

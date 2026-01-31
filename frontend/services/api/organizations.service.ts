@@ -1,4 +1,5 @@
 import { apiClient } from './api-client';
+import { unwrapResponse } from '@/lib/api-response';
 import type { Organization } from '@/types';
 
 export interface CreateOrganizationDto {
@@ -34,22 +35,22 @@ export interface UpdateOrganizationDto {
 class OrganizationsService {
   async getAll(params?: { page?: number; limit?: number }) {
     const response = await apiClient.get('/organizations', { params });
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async getById(id: string): Promise<Organization> {
     const response = await apiClient.get(`/organizations/${id}`);
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async create(data: CreateOrganizationDto): Promise<Organization> {
     const response = await apiClient.post('/organizations', data);
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async update(id: string, data: UpdateOrganizationDto): Promise<Organization> {
     const response = await apiClient.patch(`/organizations/${id}`, data);
-    return response.data.data;
+    return unwrapResponse(response.data);
   }
 
   async delete(id: string): Promise<void> {
