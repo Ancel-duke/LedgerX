@@ -33,6 +33,20 @@ enum PaymentMethod {
   OTHER
 }
 
+// Ledger Core enums (append-only accounting layer)
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum LedgerEntryDirection {
+  DEBIT
+  CREDIT
+}
+
 // Organization model - represents a tenant
 model Organization {
   id          String   @id @default(uuid())
@@ -53,11 +67,13 @@ model Organization {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  userOrganizations UserOrganization[]
-  roles             Role[]
-  clients           Client[]
-  invoices          Invoice[]
-  payments          Payment[]
+  userOrganizations   UserOrganization[]
+  roles               Role[]
+  clients             Client[]
+  invoices            Invoice[]
+  payments            Payment[]
+  ledgerAccounts      LedgerAccount[]
+  ledgerTransactions  LedgerTransaction[]
 
   @@index([slug])
   @@index([isActive, deletedAt])
@@ -241,4 +257,70 @@ model Payment {
   @@index([processedAt])
   @@index([deletedAt])
   @@map("payments")
+}
+
+// --- Ledger Core (append-only accounting truth layer) ---
+
+model LedgerAccount {
+  id             String           @id @default(uuid())
+  organizationId String
+  name           String
+  type           LedgerAccountType
+  currency       String           @default("USD")
+
+  // Relations
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries      LedgerEntry[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([type])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id             String   @id @default(uuid())
+  organizationId String
+  referenceType  String   // e.g. "INVOICE", "PAYMENT"
+  referenceId    String
+  createdAt      DateTime @default(now())
+
+  // Relations
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries      LedgerEntry[]
+  hash         LedgerHash?
+
+  @@unique([organizationId, referenceType, referenceId])
+  @@index([organizationId])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id                  String              @id @default(uuid())
+  ledgerTransactionId  String
+  accountId           String
+  direction           LedgerEntryDirection
+  amount              BigInt              // Integer monetary value (e.g. cents)
+
+  // Relations
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id], onDelete: Cascade)
+  account          LedgerAccount     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([ledgerTransactionId])
+  @@index([accountId])
+  @@map("ledger_entries")
+}
+
+model LedgerHash {
+  ledgerTransactionId String
+  previousHash       String?  // Null for first transaction
+  currentHash        String
+
+  // Relations
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id], onDelete: Cascade)
+
+  @@id([ledgerTransactionId])
+  @@map("ledger_hashes")
 }
