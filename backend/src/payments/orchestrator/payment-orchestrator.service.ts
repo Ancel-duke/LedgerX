@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { StructuredLoggerService } from '../../common/structured-logger/structured-logger.service';
-import { PrismaService } from '../database/postgres/prisma.service';
+import { PrismaService } from '../../database/postgres/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PaymentProvider, PaymentIntentStatus } from '@prisma/client';
 import { PaymentMethod } from '@prisma/client';

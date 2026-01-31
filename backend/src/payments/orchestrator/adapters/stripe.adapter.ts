@@ -19,7 +19,7 @@ export class StripeAdapter implements IStripeAdapter {
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
     const key = process.env.STRIPE_SECRET_KEY;
     if (key) {
-      this.stripe = new Stripe(key, { apiVersion: '2024-11-20.acacia' });
+      this.stripe = new Stripe(key, { apiVersion: '2023-10-16' });
     }
   }
 
@@ -55,12 +55,12 @@ export class StripeAdapter implements IStripeAdapter {
     const invoiceId = metadata.invoiceId ?? metadata.invoice_id;
 
     if (type === 'payment_intent.succeeded') {
-      const pi = obj as Stripe.PaymentIntent;
+      const pi = obj as unknown as Stripe.PaymentIntent;
       amountCents = pi.amount ?? 0;
       currency = (pi.currency ?? 'usd') as string;
       providerRef = pi.id;
     } else if (type === 'charge.succeeded') {
-      const charge = obj as Stripe.Charge;
+      const charge = obj as unknown as Stripe.Charge;
       amountCents = charge.amount ?? 0;
       currency = (charge.currency ?? 'usd') as string;
       providerRef = charge.id;

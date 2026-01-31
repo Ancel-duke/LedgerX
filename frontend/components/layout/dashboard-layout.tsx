@@ -16,7 +16,6 @@ const navLinks = [
   { href: '/dashboard/audit', label: 'Audit', roleOnly: true },
   { href: '/dashboard/fraud', label: 'Fraud & Risk' },
   { href: '/dashboard/diagnostics', label: 'Diagnostics', roleOnly: true },
-  { href: '/dashboard/settings', label: 'Settings' },
 ];
 
 function NavLinks({
@@ -40,7 +39,7 @@ function NavLinks({
             key={link.href}
             href={link.href}
             onClick={onClick}
-            className={`${linkClassName} ${pathname === link.href ? 'bg-neutral-100 text-neutral-900 font-medium' : ''}`}
+            className={`${linkClassName} ${pathname === link.href ? 'bg-neutral-100 text-neutral-900 font-medium ring-1 ring-neutral-200 rounded-md' : ''}`}
           >
             {link.label}
           </Link>
@@ -54,13 +53,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const canAccessAuditDiagnostics = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const router = useRouter();
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOrgDropdownOpen(false);
+      }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
+        setUserDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -85,6 +89,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     setDrawerOpen(false);
+    setUserDropdownOpen(false);
     logout();
     router.push('/auth/login');
   };
@@ -103,7 +108,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const linkBase = 'px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 min-h-[44px] min-w-[44px] flex items-center';
+  const linkBase = 'px-4 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 hover:bg-neutral-50 rounded-md min-h-[44px] min-w-[44px] flex items-center';
   const drawerLinkClass = 'block w-full text-left px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 border-b border-neutral-100 last:border-0';
 
   return (
@@ -157,16 +162,52 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               )}
-              <span className="hidden sm:inline text-sm text-neutral-600 truncate max-w-[120px] lg:max-w-none">
-                {user?.firstName} {user?.lastName}
-              </span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 min-h-[44px] sm:min-h-0"
-              >
-                Sign out
-              </button>
+              <div className="relative" ref={userDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-md min-h-[44px] sm:min-h-0"
+                  aria-expanded={userDropdownOpen}
+                  aria-haspopup="true"
+                  aria-label="User menu"
+                >
+                  <span className="hidden sm:inline truncate max-w-[140px] lg:max-w-[180px]">
+                    {user?.firstName} {user?.lastName}
+                  </span>
+                  <svg className="w-4 h-4 text-neutral-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-52 py-1 bg-white rounded-md shadow-lg border border-neutral-200 z-50">
+                    <div className="px-4 py-2 border-b border-neutral-100">
+                      <p className="text-sm font-medium text-neutral-900 truncate">{user?.firstName} {user?.lastName}</p>
+                      <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
+                    </div>
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                    >
+                      Settings
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 border-t border-neutral-100"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

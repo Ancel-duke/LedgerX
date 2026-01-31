@@ -16,7 +16,7 @@ export class StripeProviderClient {
   constructor(private readonly circuitBreaker: CircuitBreakerService) {
     const key = process.env.STRIPE_SECRET_KEY;
     if (key) {
-      this.stripe = new Stripe(key, { apiVersion: '2024-11-20.acacia' });
+      this.stripe = new Stripe(key, { apiVersion: '2023-10-16' });
     }
   }
 

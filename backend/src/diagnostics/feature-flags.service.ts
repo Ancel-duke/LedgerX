@@ -61,9 +61,10 @@ export class FeatureFlagsService {
       throw new Error(`Feature flag not allowed: ${key}`);
     }
     const scopeIdVal = scope === 'GLOBAL' ? FeatureFlagsService.GLOBAL_SCOPE_ID : (scopeId ?? null);
+    const scopeIdForPrisma = scopeIdVal ?? '';
     return this.prisma.featureFlag
       .upsert({
-        where: { key_scope_scopeId: { key, scope, scopeId: scopeIdVal } },
+        where: { key_scope_scopeId: { key, scope, scopeId: scopeIdForPrisma } },
         create: { key, value, scope, scopeId: scopeIdVal },
         update: { value },
       })

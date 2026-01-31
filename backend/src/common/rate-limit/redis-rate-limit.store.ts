@@ -20,10 +20,10 @@ export class RedisRateLimitStore implements IRateLimitStore, OnModuleDestroy {
     }
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 2,
-      retryStrategy: (times) => (times > 2 ? null : 1000),
+      retryStrategy: (times: number) => (times > 2 ? null : 1000),
       lazyConnect: true,
     });
-    this.redis.on('error', (err) => this.logger.warn('Redis rate limit store error', { error: err.message }));
+    this.redis.on('error', (err: Error) => this.logger.warn('Redis rate limit store error', { error: err.message }));
   }
 
   async checkAndIncrement(key: string, limit: number, ttlMs: number): Promise<boolean> {

@@ -113,7 +113,7 @@ export class MetricsService {
       const sum = (name: string): number => {
         const m = metrics.find((x: unknown) => typeof x === 'object' && x !== null && (x as { name?: string }).name === name);
         if (!m || typeof m !== 'object') return 0;
-        const obj = m as Record<string, unknown>;
+        const obj = m as unknown as Record<string, unknown>;
         if (!('values' in obj)) return 0;
         const values = obj.values;
         if (!Array.isArray(values)) return 0;
