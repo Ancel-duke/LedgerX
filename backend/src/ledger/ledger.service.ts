@@ -4,15 +4,12 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { LedgerEntryDirection } from '@prisma/client';
 import { PostTransactionDto } from './dto/post-transaction.dto';
 import { CreateLedgerAccountDto } from './dto/create-account.dto';
-import {
-  LedgerTransactionPostedEvent,
-  LEDGER_TRANSACTION_POSTED,
-} from './events/ledger-transaction-posted.event';
+import { DomainEventBus } from '../domain-events/domain-event-bus.service';
+import { LEDGER_TRANSACTION_POSTED } from '../domain-events/events';
 import { createHash } from 'crypto';
 import { PaginationUtil, PaginationParams } from '../common/utils/pagination.util';
 import { Prisma } from '@prisma/client';
@@ -22,7 +19,7 @@ import { Prisma } from '@prisma/client';
 export class LedgerService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly domainEventBus: DomainEventBus,
   ) {}
 
   /**
@@ -142,16 +139,13 @@ export class LedgerService {
       return { id: ledgerTx.id, createdAt: ledgerTx.createdAt };
     });
 
-    this.eventEmitter.emit(
-      LEDGER_TRANSACTION_POSTED,
-      new LedgerTransactionPostedEvent(
-        organizationId,
-        result.id,
-        referenceType,
-        referenceId,
-        result.createdAt,
-      ),
-    );
+    this.domainEventBus.publish(LEDGER_TRANSACTION_POSTED, {
+      organizationId,
+      ledgerTransactionId: result.id,
+      referenceType,
+      referenceId,
+      createdAt: result.createdAt,
+    });
 
     return result;
   }

@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { Prisma, InvoiceStatus, PaymentStatus } from '@prisma/client';
+import { DomainEventBus } from '../domain-events/domain-event-bus.service';
+import { INVOICE_OVERDUE } from '../domain-events/events';
 
 /**
  * Example service methods demonstrating transaction usage for invoice and payment flows
@@ -13,7 +15,10 @@ import { Prisma, InvoiceStatus, PaymentStatus } from '@prisma/client';
  */
 @Injectable()
 export class InvoicesTransactionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private domainEventBus: DomainEventBus,
+  ) {}
 
   /**
    * Create invoice with items in a transaction
@@ -348,7 +353,7 @@ export class InvoicesTransactionService {
 
   /**
    * Mark invoice as overdue in a transaction
-   * Can be run as a scheduled job
+   * Can be run as a scheduled job. Emits InvoiceOverdue domain event after successful commit.
    */
   async markOverdueInvoices(organizationId?: string) {
     const where: Prisma.InvoiceWhereInput = {
@@ -365,18 +370,35 @@ export class InvoicesTransactionService {
       where.organizationId = organizationId;
     }
 
-    return await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.invoice.updateMany({
+    const result = await this.prisma.$transaction(async (tx) => {
+      const toUpdate = await tx.invoice.findMany({
         where,
-        data: {
-          status: InvoiceStatus.OVERDUE,
-        },
+        select: { id: true, organizationId: true },
       });
-
-      return {
-        count: updated.count,
-        message: `Marked ${updated.count} invoice(s) as overdue`,
-      };
+      const ids = toUpdate.map((i) => i.id);
+      if (ids.length === 0) {
+        return { count: 0, invoiceIds: [] as string[], organizationId: organizationId ?? null };
+      }
+      await tx.invoice.updateMany({
+        where: { id: { in: ids } },
+        data: { status: InvoiceStatus.OVERDUE },
+      });
+      const orgId = organizationId ?? toUpdate[0]?.organizationId ?? null;
+      return { count: ids.length, invoiceIds: ids, organizationId: orgId };
     });
+
+    if (result.count > 0) {
+      this.domainEventBus.publish(INVOICE_OVERDUE, {
+        organizationId: result.organizationId,
+        invoiceIds: result.invoiceIds,
+        count: result.count,
+        occurredAt: new Date(),
+      });
+    }
+
+    return {
+      count: result.count,
+      message: `Marked ${result.count} invoice(s) as overdue`,
+    };
   }
 }

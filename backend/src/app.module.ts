@@ -12,11 +12,15 @@ import { PaymentsModule } from './payments/payments.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { LedgerModule } from './ledger/ledger.module';
+import { DomainEventsModule } from './domain-events/domain-events.module';
+import { AuditComplianceModule } from './audit-compliance/audit-compliance.module';
+import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
 
 @Module({
   imports: [
     ConfigModule,
     EventEmitterModule.forRoot(),
+    DomainEventsModule,
     PostgresModule,
     MongoModule,
     AuthModule,
@@ -28,6 +32,8 @@ import { LedgerModule } from './ledger/ledger.module';
     AnalyticsModule,
     ActivityLogModule,
     LedgerModule,
+    AuditComplianceModule,
+    FraudDetectionModule,
   ],
 })
 export class AppModule {}

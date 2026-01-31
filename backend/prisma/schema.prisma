@@ -361,3 +361,31 @@ model LedgerHash {
   @@id([ledgerTransactionId])
   @@map("ledger_hashes")
 }
+
+// Domain events audit (consumers write here; no mutation of core business data)
+model DomainEventAudit {
+  id             String   @id @default(uuid())
+  organizationId String
+  eventType      String
+  payload        Json
+  occurredAt     DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([eventType])
+  @@index([occurredAt])
+  @@map("domain_event_audit")
+}
+
+// Fraud detection: event records for analysis (read-only from event payload; no core data mutation)
+model FraudDetectionEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+  eventType      String
+  payload        Json
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("fraud_detection_events")
+}

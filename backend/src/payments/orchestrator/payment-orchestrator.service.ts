@@ -4,19 +4,16 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PaymentProvider, PaymentIntentStatus } from '@prisma/client';
 import { PaymentMethod } from '@prisma/client';
 import { PaymentsService } from '../payments.service';
 import { LedgerService } from '../../ledger/ledger.service';
+import { DomainEventBus } from '../../domain-events/domain-event-bus.service';
+import { PAYMENT_COMPLETED } from '../../domain-events/events';
 import { IWebhookAdapter } from './interfaces/webhook-adapter.interface';
 import { ParsedWebhookPayload } from './types/parsed-webhook-payload';
-import {
-  PaymentCompletedEvent,
-  PAYMENT_COMPLETED,
-} from './events/payment-completed.event';
 import { LedgerEntryDirection } from '@prisma/client';
 import { MpesaAdapter } from './adapters/mpesa.adapter';
 import { StripeAdapter } from './adapters/stripe.adapter';
@@ -44,7 +41,7 @@ export class PaymentOrchestratorService {
     private readonly prisma: PrismaService,
     private readonly paymentsService: PaymentsService,
     private readonly ledgerService: LedgerService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly domainEventBus: DomainEventBus,
     mpesaAdapter: MpesaAdapter,
     stripeAdapter: StripeAdapter,
   ) {
@@ -187,18 +184,15 @@ export class PaymentOrchestratorService {
       },
     });
 
-    this.eventEmitter.emit(
-      PAYMENT_COMPLETED,
-      new PaymentCompletedEvent(
-        organizationId,
-        payment.id,
-        intent.id,
-        providerRef,
-        amount,
-        currency || 'USD',
-        invoiceId ?? null,
-      ),
-    );
+    this.domainEventBus.publish(PAYMENT_COMPLETED, {
+      organizationId,
+      paymentId: payment.id,
+      paymentIntentId: intent.id,
+      providerRef,
+      amount,
+      currency: currency || 'USD',
+      invoiceId: invoiceId ?? null,
+    });
 
     await this.postLedgerEntries(organizationId, payment.id, amount, currency);
 
