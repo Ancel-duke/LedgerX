@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as express from 'express';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
@@ -11,6 +12,14 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const apiPrefix = configService.get<string>('app.apiPrefix') || 'api';
   const corsOrigin = configService.get<string>('app.corsOrigin') || 'http://localhost:3001';
+
+  // Raw body for payment webhooks (signature verification)
+  const httpAdapter = app.getHttpAdapter();
+  const expressApp = httpAdapter.getInstance();
+  expressApp.use(
+    `/${apiPrefix}/payments/webhooks`,
+    express.raw({ type: 'application/json' }),
+  );
 
   app.setGlobalPrefix(apiPrefix);
 
