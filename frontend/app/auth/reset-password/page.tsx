@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { authService } from '@/services/api/auth.service';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Card } from '@/components/ui/card';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const { addToast } = useToast();
   const [token, setToken] = useState<string | null>(null);
@@ -174,5 +174,21 @@ export default function ResetPasswordPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4 sm:px-6 lg:px-8 py-8">
+          <Card className="w-full max-w-md p-6 sm:p-8">
+            <p className="text-sm sm:text-base text-neutral-600">Loading…</p>
+          </Card>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
