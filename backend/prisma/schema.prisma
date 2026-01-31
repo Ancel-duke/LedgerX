@@ -376,6 +376,25 @@ model DomainEventAudit {
   @@map("domain_event_audit")
 }
 
+// Audit & Compliance (extended from Activity Log): append-only, optional hash chaining per entity
+model AuditComplianceRecord {
+  id             String    @id @default(uuid())
+  organizationId String
+  eventType      String
+  actor          String    // user id or service name (e.g. "payment-orchestrator")
+  entityType     String    // e.g. "PAYMENT", "LEDGER_TRANSACTION"
+  entityId       String
+  payloadHash    String    // hash of event payload
+  previousHash   String?   // hash chain: previous record's currentHash for this entity
+  currentHash    String    // hash(previousHash + payloadHash + occurredAt)
+  occurredAt     DateTime  @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, entityType, entityId])
+  @@index([occurredAt])
+  @@map("audit_compliance_records")
+}
+
 // Fraud detection: event records for analysis (read-only from event payload; no core data mutation)
 model FraudDetectionEvent {
   id             String   @id @default(uuid())
