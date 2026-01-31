@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/postgres/prisma.service';
@@ -13,6 +14,7 @@ import { LedgerService } from '../../ledger/ledger.service';
 import { DomainEventBus } from '../../domain-events/domain-event-bus.service';
 import { PAYMENT_COMPLETED } from '../../domain-events/events';
 import { MetricsService } from '../../metrics/metrics.service';
+import { FraudRiskService } from '../../fraud-detection/fraud-risk.service';
 import { IWebhookAdapter } from './interfaces/webhook-adapter.interface';
 import { ParsedWebhookPayload } from './types/parsed-webhook-payload';
 import { LedgerEntryDirection } from '@prisma/client';
@@ -44,6 +46,7 @@ export class PaymentOrchestratorService {
     private readonly ledgerService: LedgerService,
     private readonly domainEventBus: DomainEventBus,
     private readonly metricsService: MetricsService,
+    private readonly fraudRiskService: FraudRiskService,
     mpesaAdapter: MpesaAdapter,
     stripeAdapter: StripeAdapter,
   ) {
@@ -100,6 +103,16 @@ export class PaymentOrchestratorService {
     payload: ParsedWebhookPayload,
   ): Promise<HandleWebhookResult> {
     const { organizationId, providerRef, amount, currency, invoiceId, method } = payload;
+
+    const orgBlock = await this.fraudRiskService.shouldBlockOrganization(organizationId);
+    if (orgBlock.block) {
+      this.logger.warn(
+        `Webhook blocked (org): organizationId=${organizationId}, providerRef=${providerRef}, reason=${orgBlock.reason ?? 'organization blocked'}`,
+      );
+      throw new ForbiddenException(
+        orgBlock.reason ?? 'Organization blocked by fraud policy',
+      );
+    }
 
     const existing = await this.prisma.paymentIntent.findUnique({
       where: {
@@ -165,7 +178,7 @@ export class PaymentOrchestratorService {
         amount,
         currency: currency || 'USD',
         method,
-        status: 'COMPLETED' as const,
+        status: 'PENDING' as const,
         transactionId: providerRef,
         invoiceId,
       });
@@ -178,6 +191,21 @@ export class PaymentOrchestratorService {
       this.metricsService.recordPaymentFailure('orchestrator');
       throw err;
     }
+
+    const paymentBlock = await this.fraudRiskService.shouldBlockPayment(organizationId, payment.id);
+    if (paymentBlock.block) {
+      this.logger.warn(
+        `Webhook blocked (payment): organizationId=${organizationId}, paymentId=${payment.id}, providerRef=${providerRef}, reason=${paymentBlock.reason ?? 'payment blocked'}`,
+      );
+      throw new ForbiddenException(
+        paymentBlock.reason ?? 'Payment blocked by fraud policy',
+      );
+    }
+
+    await this.paymentsService.update(organizationId, payment.id, {
+      status: 'COMPLETED' as const,
+      processedAt: new Date().toISOString(),
+    });
 
     await this.prisma.paymentIntent.update({
       where: { id: intent.id },

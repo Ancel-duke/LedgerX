@@ -1,22 +1,45 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentStatus } from '@prisma/client';
+import { LedgerEntryDirection } from '@prisma/client';
 import { PaginationUtil, PaginationParams } from '../common/utils/pagination.util';
 import { Prisma } from '@prisma/client';
 import { InvoicesTransactionService } from '../invoices/invoices-transaction.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { LedgerService } from '../ledger/ledger.service';
+import { FraudRiskService } from '../fraud-detection/fraud-risk.service';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     private prisma: PrismaService,
     private invoicesTransactionService: InvoicesTransactionService,
     private activityLogService: ActivityLogService,
+    private ledgerService: LedgerService,
+    private fraudRiskService: FraudRiskService,
   ) {}
 
   async create(organizationId: string, userId: string, createPaymentDto: CreatePaymentDto) {
+    const orgBlock = await this.fraudRiskService.shouldBlockOrganization(organizationId);
+    if (orgBlock.block) {
+      this.logger.warn(
+        `Payment creation blocked: organizationId=${organizationId}, reason=${orgBlock.reason ?? 'organization blocked'}`,
+      );
+      throw new ForbiddenException(
+        orgBlock.reason ?? 'Organization blocked by fraud policy',
+      );
+    }
+
     // Default to COMPLETED status if not specified
     const paymentStatus = createPaymentDto.status || PaymentStatus.COMPLETED;
     const processedAt = createPaymentDto.processedAt 
@@ -107,6 +130,11 @@ export class PaymentsService {
       }
     }
 
+    // Ledger: post COMPLETED payments only (idempotent by referenceType + referenceId)
+    if (payment.status === PaymentStatus.COMPLETED) {
+      await this.postPaymentToLedger(organizationId, payment);
+    }
+
     // Log activity
     try {
       await this.activityLogService.create(
@@ -135,6 +163,37 @@ export class PaymentsService {
     }
 
     return payment;
+  }
+
+  /**
+   * Post a COMPLETED payment to the ledger (debit ASSET, credit REVENUE).
+   * Idempotent via LedgerService (referenceType + referenceId).
+   * Throws if ASSET or REVENUE accounts are not configured for the org.
+   */
+  private async postPaymentToLedger(
+    organizationId: string,
+    payment: { id: string; amount: Prisma.Decimal; currency: string },
+  ): Promise<void> {
+    const accounts = await this.ledgerService.getAccounts(organizationId);
+    const assetAccount = accounts.find((a) => a.type === 'ASSET');
+    const revenueAccount = accounts.find((a) => a.type === 'REVENUE');
+    if (!assetAccount || !revenueAccount) {
+      throw new BadRequestException(
+        'Ledger not configured: ASSET and REVENUE accounts are required for the organization. Create them via the ledger accounts API.',
+      );
+    }
+    const amountCents = Math.round(Number(payment.amount) * 100);
+    if (amountCents <= 0) {
+      return;
+    }
+    await this.ledgerService.postTransaction(organizationId, {
+      referenceType: 'PAYMENT',
+      referenceId: payment.id,
+      entries: [
+        { accountId: assetAccount.id, direction: LedgerEntryDirection.DEBIT, amount: amountCents },
+        { accountId: revenueAccount.id, direction: LedgerEntryDirection.CREDIT, amount: amountCents },
+      ],
+    });
   }
 
   async findAll(
@@ -229,7 +288,32 @@ export class PaymentsService {
       updateData.amount = new Prisma.Decimal(updatePaymentDto.amount);
     if (updatePaymentDto.currency) updateData.currency = updatePaymentDto.currency;
     if (updatePaymentDto.method) updateData.method = updatePaymentDto.method;
-    if (updatePaymentDto.status !== undefined) updateData.status = updatePaymentDto.status;
+    if (updatePaymentDto.status !== undefined) {
+      if (
+        updatePaymentDto.status === PaymentStatus.COMPLETED &&
+        payment.status !== PaymentStatus.COMPLETED
+      ) {
+        const orgBlock = await this.fraudRiskService.shouldBlockOrganization(organizationId);
+        if (orgBlock.block) {
+          this.logger.warn(
+            `Payment update blocked (org): organizationId=${organizationId}, paymentId=${id}, reason=${orgBlock.reason ?? 'organization blocked'}`,
+          );
+          throw new ForbiddenException(
+            orgBlock.reason ?? 'Organization blocked by fraud policy',
+          );
+        }
+        const paymentBlock = await this.fraudRiskService.shouldBlockPayment(organizationId, id);
+        if (paymentBlock.block) {
+          this.logger.warn(
+            `Payment update blocked (payment): organizationId=${organizationId}, paymentId=${id}, reason=${paymentBlock.reason ?? 'payment blocked'}`,
+          );
+          throw new ForbiddenException(
+            paymentBlock.reason ?? 'Payment blocked by fraud policy',
+          );
+        }
+      }
+      updateData.status = updatePaymentDto.status;
+    }
     if (updatePaymentDto.transactionId !== undefined)
       updateData.transactionId = updatePaymentDto.transactionId;
     if (updatePaymentDto.processedAt !== undefined)

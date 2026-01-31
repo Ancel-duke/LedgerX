@@ -7,10 +7,12 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { UsersModule } from '../users/users.module';
+import { LedgerModule } from '../ledger/ledger.module';
 
 @Module({
   imports: [
     UsersModule,
+    LedgerModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

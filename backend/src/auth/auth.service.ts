@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../database/postgres/prisma.service';
 import { UsersService } from '../users/users.service';
+import { LedgerBootstrapService } from '../ledger/ledger-bootstrap.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -20,6 +21,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private ledgerBootstrapService: LedgerBootstrapService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -48,6 +50,8 @@ export class AuthService {
         slug: registerDto.organizationSlug || this.slugify(registerDto.organizationName),
       },
     });
+
+    await this.ledgerBootstrapService.ensureDefaults(organization.id);
 
     // Create default roles for the organization
     const adminRole = await this.prisma.role.create({

@@ -4,6 +4,7 @@ import { PaymentsService } from './payments.service';
 import { ActivityLogModule } from '../activity-log/activity-log.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { LedgerModule } from '../ledger/ledger.module';
+import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module';
 import { PaymentOrchestratorService } from './orchestrator/payment-orchestrator.service';
 import { WebhooksController } from './orchestrator/webhooks.controller';
 import { MpesaAdapter } from './orchestrator/adapters/mpesa.adapter';
@@ -21,7 +22,7 @@ import { MpesaProviderClient } from './orchestrator/clients/mpesa-provider.clien
     StripeProviderClient,
     MpesaProviderClient,
   ],
-  imports: [ActivityLogModule, InvoicesModule, LedgerModule],
+  imports: [ActivityLogModule, InvoicesModule, LedgerModule, FraudDetectionModule],
   exports: [StripeProviderClient, MpesaProviderClient],
 })
 export class PaymentsModule {}

@@ -3,10 +3,14 @@ import { PrismaService } from '../database/postgres/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { PaginationUtil, PaginationParams } from '../common/utils/pagination.util';
+import { LedgerBootstrapService } from '../ledger/ledger-bootstrap.service';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private ledgerBootstrapService: LedgerBootstrapService,
+  ) {}
 
   async create(createOrganizationDto: CreateOrganizationDto) {
     const slug = createOrganizationDto.slug || this.slugify(createOrganizationDto.name);
@@ -26,6 +30,8 @@ export class OrganizationsService {
         isActive: createOrganizationDto.isActive ?? true,
       },
     });
+
+    await this.ledgerBootstrapService.ensureDefaults(organization.id);
 
     return organization;
   }
