@@ -2,10 +2,15 @@ import { apiClient } from './api-client';
 import { unwrapResponse } from '@/lib/api-response';
 import type { Client, CreateClientDto, UpdateClientDto } from '@/types';
 
+export interface ClientListResponse {
+  data: Client[];
+  meta?: { page: number; limit: number; total: number; totalPages?: number };
+}
+
 class ClientsService {
-  async getAll(params?: { page?: number; limit?: number }) {
+  async getAll(params?: { page?: number; limit?: number }): Promise<ClientListResponse> {
     const response = await apiClient.get('/clients', { params });
-    return unwrapResponse(response.data);
+    return unwrapResponse<ClientListResponse>(response.data) ?? { data: [] };
   }
 
   async getById(id: string): Promise<Client> {

@@ -12,7 +12,7 @@ export default function ClientsPage() {
     queryFn: () => clientsService.getAll({ page: 1, limit: 50 }),
   });
 
-  const clients = data?.data ?? data ?? [];
+  const clients = data?.data ?? [];
 
   if (isLoading) {
     return (
